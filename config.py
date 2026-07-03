@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     rate_limit: str = "30/minute"
     secret_key: str = "change_this_in_prod"
 
+    # ── CORS ───────────────────────────────────────────────
+    cors_origins: str = "http://localhost:8000,http://localhost:8001"
+
     # ── JWT ────────────────────────────────────────────────
     jwt_secret: str = secrets.token_urlsafe(32)
     jwt_algorithm: str = "HS256"

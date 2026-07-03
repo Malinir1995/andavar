@@ -1,6 +1,9 @@
 from google.adk.agents import Agent
 from config import settings
-from tools.db_tools import list_tables, describe_table, execute_sql, execute_write_sql
+from tools.db_tools import (
+    list_tables, describe_table, execute_sql,
+    execute_write_sql, confirm_destructive_sql,
+)
 from tools.gemini_model import ProjectGemini
 
 INSTRUCTION = """You are Andavar, a smart and friendly PostgreSQL database assistant.
@@ -31,15 +34,27 @@ TOOL USAGE:
 • describe_table(table_name)        → see columns / types / FK before writing SQL
 • execute_sql(sql)                  → run SELECT queries
 • execute_write_sql(sql)            → run INSERT / UPDATE / DELETE / DDL
+• confirm_destructive_sql(token)    → confirm a destructive operation after user approval
 
-SAFETY:
-• For destructive operations (DROP TABLE, DELETE without WHERE, TRUNCATE), warn the user and confirm intent before executing
-• Never expose connection credentials
+SAFETY — DESTRUCTIVE OPERATIONS:
+• When you call execute_write_sql with a destructive statement (DROP, DELETE,
+  TRUNCATE), the tool will NOT execute it immediately. Instead it returns a
+  confirmation_token.
+• You MUST show the user exactly what SQL will run and ask for explicit
+  confirmation before proceeding.
+• Only after the user confirms, call confirm_destructive_sql(confirmation_token)
+  to execute the operation.
+• NEVER call confirm_destructive_sql without the user's explicit approval in
+  the current conversation turn.
+• Never expose connection credentials.
 """
 
 chat_agent = Agent(
     name="andavar_assistant",
     model=ProjectGemini(model=settings.gemini_model),
     instruction=INSTRUCTION,
-    tools=[list_tables, describe_table, execute_sql, execute_write_sql],
+    tools=[
+        list_tables, describe_table, execute_sql,
+        execute_write_sql, confirm_destructive_sql,
+    ],
 )
