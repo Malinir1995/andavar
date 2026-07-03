@@ -1,0 +1,233 @@
+import os
+import logging
+from typing import Optional
+from fastapi import FastAPI, HTTPException, Request, Depends, status
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+
+logging.basicConfig(
+    level=logging.WARNING,  # Suppress INFO noise; only show warnings+
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("andavar.app")
+
+from tools.validator import validate_input_request
+from agents.root_agent import generate_schema_workflow, run_chat_async
+from tools.memory_store import get_history, get_version, get_schema_diff, bootstrap_admin, get_connection
+from tools.neon_mcp import get_database_schema_introspection, get_db_tables
+from auth import get_current_user, require_role, get_optional_user
+
+# ── Import route modules ──────────────────────────────────────────────────────
+from routes.users import router as auth_router, user_router
+from routes.projects import router as project_router
+from routes.reports import router as report_router
+
+app = FastAPI(
+    title="Andavar SQL Assistant",
+    description="Conversational AI database assistant powered by Google ADK",
+    version="2.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ── Register routers ──────────────────────────────────────────────────────────
+app.include_router(auth_router)
+app.include_router(user_router)
+app.include_router(project_router)
+app.include_router(report_router)
+
+
+# ── Startup: bootstrap admin ──────────────────────────────────────────────────
+@app.on_event("startup")
+def on_startup():
+    bootstrap_admin()
+
+
+# ── Request / Response models ──────────────────────────────────────────────────
+
+class ChatRequest(BaseModel):
+    message: str = Field(..., description="User's message to the assistant")
+    session_id: str = Field(..., description="Session identifier for conversation memory")
+    project_id: Optional[str] = Field(default=None, description="Active project identifier")
+
+
+class GenerateRequest(BaseModel):
+    prompt: str
+    session_id: str
+    label: Optional[str] = None
+    project_id: Optional[str] = None
+
+
+class SetupRequest(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    email: str
+    password: str = Field(..., min_length=6)
+
+
+# ── Routes ─────────────────────────────────────────────────────────────────────
+
+@app.get("/")
+def serve_index():
+    frontend_path = os.path.join(os.path.dirname(__file__), "frontend", "index.html")
+    if os.path.exists(frontend_path):
+        return FileResponse(frontend_path)
+    return JSONResponse(status_code=404, content={"error": "frontend/index.html not found"})
+
+
+@app.get("/api/auth/needs-setup")
+def needs_setup():
+    """Check if initial admin setup is required."""
+    conn = get_connection()
+    if not conn:
+        return {"needs_setup": True, "reason": "no_database"}
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM av_users")
+            count = cur.fetchone()[0]
+        return {"needs_setup": count == 0}
+    except Exception:
+        return {"needs_setup": True, "reason": "table_missing"}
+    finally:
+        conn.close()
+
+
+@app.post("/api/auth/setup")
+def initial_setup(req: SetupRequest):
+    """Create the first admin user (only works when no users exist)."""
+    from auth import hash_password, create_token
+
+    conn = get_connection()
+    if not conn:
+        raise HTTPException(500, "Database not available")
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM av_users")
+            if cur.fetchone()[0] > 0:
+                raise HTTPException(400, "Setup already completed — users exist")
+
+            pw_hash = hash_password(req.password)
+            cur.execute(
+                """INSERT INTO av_users (username, email, password_hash, role)
+                   VALUES (%s, %s, %s, 'admin') RETURNING id""",
+                (req.username, req.email, pw_hash),
+            )
+            user_id = str(cur.fetchone()[0])
+            conn.commit()
+
+        token = create_token(user_id, "admin", req.username)
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "id": user_id,
+                "username": req.username,
+                "email": req.email,
+                "role": "admin",
+                "is_active": True,
+            },
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(500, str(e))
+    finally:
+        conn.close()
+
+
+@app.post("/api/chat")
+async def chat(req: ChatRequest, user: dict = Depends(get_current_user)):
+    """Main conversational endpoint — handles all user messages."""
+    from tools.memory_store import current_user_role, set_active_project_context
+    current_user_role.set(user["role"])
+    if req.project_id:
+        set_active_project_context(req.project_id)
+        
+    val = validate_input_request(req.message)
+    if val["status"] == "error":
+        raise HTTPException(status_code=400, detail=val["error"])
+    try:
+        reply = await run_chat_async(val["data"], req.session_id)
+        return {"reply": reply, "session_id": req.session_id}
+    except Exception as e:
+        logger.exception("chat endpoint error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/db/tables")
+def db_tables(project_id: Optional[str] = None, user: dict = Depends(get_current_user)):
+    """Returns all table names in the connected database (for sidebar)."""
+    from tools.memory_store import set_active_project_context
+    if project_id:
+        set_active_project_context(project_id)
+    try:
+        tables = get_db_tables()
+        return {"tables": tables}
+    except Exception as e:
+        logger.error(f"db_tables: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/db/status")
+def db_status(project_id: Optional[str] = None, user: dict = Depends(get_optional_user)):
+    """Returns whether the database is reachable."""
+    from tools.memory_store import set_active_project_context
+    if project_id:
+        set_active_project_context(project_id)
+    try:
+        tables = get_db_tables()
+        return {"connected": True, "table_count": len(tables)}
+    except Exception as e:
+        return {"connected": False, "error": str(e)}
+
+
+# ── Legacy schema endpoints (kept for backward compat) ─────────────────────────
+
+@app.post("/api/schema/generate")
+async def generate_schema(req: GenerateRequest, user: dict = Depends(require_role("manager"))):
+    from tools.memory_store import set_active_project_context
+    if req.project_id:
+        set_active_project_context(req.project_id)
+        
+    val = validate_input_request(req.prompt)
+    if val["status"] == "error":
+        raise HTTPException(status_code=400, detail=val["error"])
+    try:
+        result = await generate_schema_workflow(val["data"], req.session_id, req.label)
+        return result
+    except Exception as e:
+        logger.exception("generate_schema error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/schema/history/{session_id}")
+def get_schema_history(session_id: str, user: dict = Depends(get_current_user)):
+    try:
+        return {"session_id": session_id, "history": get_history(session_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/db/introspection")
+def introspect_database(project_id: Optional[str] = None, user: dict = Depends(get_current_user)):
+    from tools.memory_store import set_active_project_context
+    if project_id:
+        set_active_project_context(project_id)
+    try:
+        schema_info = get_database_schema_introspection()
+        return {"status": "success", "schema": schema_info}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8001))
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
