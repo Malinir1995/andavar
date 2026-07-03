@@ -10,6 +10,7 @@ from google.genai import types
 from agents.schema_designer import schema_designer
 from agents.sql_generator import sql_generator
 from agents.explainer import explainer
+from agents.mock_data_generator import mock_data_generator
 from tools.memory_store import save_version, get_latest_version
 from tools.schema_diff import diff_schemas, format_diff_markdown
 
@@ -127,8 +128,8 @@ async def generate_schema_workflow(
     prompt: str, session_id: str, label: str = None
 ) -> Dict[str, Any]:
     """
-    Three-agent schema pipeline:
-    Schema Designer → SQL Generator → Explainer → Save to history
+    Four-agent schema pipeline:
+    Schema Designer → SQL Generator → Explainer → Mock Data Generator → Save to history
     """
     latest_ver = get_latest_version(session_id)
     if latest_ver:
@@ -150,13 +151,24 @@ async def generate_schema_workflow(
     except json.JSONDecodeError as e:
         raise ValueError(f"Schema designer produced invalid JSON: {e}")
 
-    sql_prompt = f"Convert this JSON schema into PostgreSQL DDL:\n{json.dumps(schema_json, indent=2)}"
+    if latest_ver:
+        sql_prompt = (
+            "Generate PostgreSQL migration DDL to migrate from the Old Schema to the New Schema.\n\n"
+            f"Old Schema:\n{json.dumps(latest_ver['schema_json'], indent=2)}\n\n"
+            f"New Schema:\n{json.dumps(schema_json, indent=2)}"
+        )
+    else:
+        sql_prompt = f"Convert this JSON schema into PostgreSQL DDL:\n{json.dumps(schema_json, indent=2)}"
     sql_output = await run_agent_async(sql_generator, sql_prompt, session_id)
 
     explainer_prompt = (
         f"Explain this schema:\nJSON:\n{json.dumps(schema_json, indent=2)}\n\nSQL:\n{sql_output}"
     )
     explanation = await run_agent_async(explainer, explainer_prompt, session_id)
+
+    # Run Mock Data Generator
+    mock_prompt = f"Generate realistic SQL INSERT statements for this schema:\n{sql_output}"
+    mock_data_sql = await run_agent_async(mock_data_generator, mock_prompt, session_id)
 
     from tools.memory_store import active_project_id
     version_num = save_version(
@@ -166,6 +178,7 @@ async def generate_schema_workflow(
         explanation=explanation,
         label=label,
         project_id=active_project_id.get(),
+        mock_data_sql=mock_data_sql,
     )
 
     diff_markdown = ""
@@ -179,6 +192,7 @@ async def generate_schema_workflow(
         "schema_design": schema_json,
         "sql": sql_output,
         "explanation": explanation,
+        "mock_data_sql": mock_data_sql,
         "diff_markdown": diff_markdown,
         "timestamp": None,
     }
