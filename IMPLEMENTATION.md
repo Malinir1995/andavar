@@ -348,3 +348,30 @@ Every agent and tool imports from `config.py` — never reads env vars directly.
 - [ ] Video walkthrough recorded
 - [ ] GitHub repo public with README
 - [ ] Submitted before July 6, 2026 11:59 PM PT
+
+---
+
+## 14. Phase 2 Features (Planned)
+
+The following features have been spec'd for Phase 2 to upgrade the application to a pro-tier developer tool:
+
+### 14.1 UI & Aesthetics Overhaul
+- **Remove Emojis:** Strip emojis globally. Use custom monochrome SVG icons (e.g., Lucide or Heroicons).
+- **Premium Design:** Enforce glassmorphism, precise typography (Outfit/Inter), and consistent dark mode (`#0f172a` backgrounds with `#8b5cf6` accents) across both the Website and Dashboard UI.
+
+### 14.2 Export Module (Replacing Reports)
+The static PDF/Markdown report feature (`/api/reports`) will be replaced with developer-ready exports:
+- **ORM Models:** Generate `schema.prisma` or SQLAlchemy `models.py`.
+- **Mermaid ERD:** Output interactive Entity-Relationship Diagrams based on the schema JSON.
+- **Standalone SQL:** Clean `migration_init.sql` downloads.
+
+### 14.3 Synthetic Data Agent ("Mock Agent")
+- **Role:** A 4th agent (`mock_data_generator.py`) that generates context-aware, realistic `INSERT` statements for the finalized schema.
+- **Execution:** Runs post-SQL generation to provide instant test data.
+
+### 14.4 Schema Migrations (ALTER TABLE)
+- **Role:** Upgrades `sql_generator.py` to handle incremental diffs.
+- **Workflow:** 
+  1. Fetch live schema via Neon MCP.
+  2. Compare against new user prompt (e.g., "Add stripe_id to users").
+  3. Output precise `ALTER TABLE` statements rather than full `CREATE TABLE` scripts.
