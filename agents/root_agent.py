@@ -94,6 +94,9 @@ async def _run_with_retry(runner: Runner, session_id: str, prompt: str) -> str:
 
 async def run_agent_async(agent, prompt: str, session_id: str) -> str:
     """One-shot agent run (used by schema workflow). Creates a fresh session each call."""
+    from tools.memory_store import AGENT_RUNS
+    AGENT_RUNS[agent.name] = AGENT_RUNS.get(agent.name, 0) + 1
+
     session_service = InMemorySessionService()
     runner = Runner(
         agent=agent,
@@ -111,6 +114,8 @@ async def run_chat_async(message: str, session_id: str) -> str:
     is maintained across multiple calls.
     """
     from agents.chat_agent import chat_agent
+    from tools.memory_store import AGENT_RUNS
+    AGENT_RUNS["andavar_chat"] = AGENT_RUNS.get("andavar_chat", 0) + 1
 
     if session_id not in _chat_runners:
         session_service = InMemorySessionService()
