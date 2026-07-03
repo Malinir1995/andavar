@@ -8,3 +8,5 @@ __pycache__/
 .coverage
 andavar_system.db
 .agents/
+*.mp4
+VN20260705_211652.mp4
