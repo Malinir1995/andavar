@@ -50,6 +50,85 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Metrics & Instrumentation ────────────────────────────────────────────────
+import time
+from collections import defaultdict
+from fastapi.responses import PlainTextResponse
+
+HTTP_REQUESTS_TOTAL = defaultdict(int)
+HTTP_REQUEST_DURATION_SUM = defaultdict(float)
+ACTIVE_REQUESTS = 0
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    global ACTIVE_REQUESTS
+    path = request.url.path
+    if path == "/metrics":
+        return await call_next(request)
+    
+    method = request.method
+    ACTIVE_REQUESTS += 1
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        return response
+    except Exception as e:
+        status = 500
+        raise e
+    finally:
+        ACTIVE_REQUESTS -= 1
+        duration = time.time() - start_time
+        HTTP_REQUESTS_TOTAL[(method, path, status)] += 1
+        HTTP_REQUEST_DURATION_SUM[(method, path)] += duration
+
+@app.get("/metrics", response_class=PlainTextResponse)
+def get_metrics():
+    lines = []
+    lines.append("# HELP andavar_http_requests_total Total HTTP requests processed.")
+    lines.append("# TYPE andavar_http_requests_total counter")
+    for (method, path, status), count in HTTP_REQUESTS_TOTAL.items():
+        lines.append(f'andavar_http_requests_total{{method="{method}",path="{path}",status="{status}"}} {count}')
+        
+    lines.append("# HELP andavar_http_request_duration_seconds_sum Sum of HTTP request durations in seconds.")
+    lines.append("# TYPE andavar_http_request_duration_seconds_sum counter")
+    for (method, path), duration in HTTP_REQUEST_DURATION_SUM.items():
+        lines.append(f'andavar_http_request_duration_seconds_sum{{method="{method}",path="{path}"}} {duration:.6f}')
+        
+    lines.append("# HELP andavar_active_requests Number of concurrent active requests.")
+    lines.append("# TYPE andavar_active_requests gauge")
+    lines.append(f'andavar_active_requests {ACTIVE_REQUESTS}')
+    
+    from tools.memory_store import AGENT_RUNS
+    lines.append("# HELP andavar_agent_runs_total Total count of specialized agent executions.")
+    lines.append("# TYPE andavar_agent_runs_total counter")
+    for agent_name, count in AGENT_RUNS.items():
+        lines.append(f'andavar_agent_runs_total{{agent="{agent_name}"}} {count}')
+        
+    conn = None
+    try:
+        conn = get_connection()
+        if conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM av_projects")
+                project_count = cur.fetchone()[0]
+                lines.append("# HELP andavar_projects_total Total projects managed by Andavar.")
+                lines.append("# TYPE andavar_projects_total gauge")
+                lines.append(f'andavar_projects_total {project_count}')
+                
+                cur.execute("SELECT COUNT(*) FROM schema_versions")
+                schema_versions = cur.fetchone()[0]
+                lines.append("# HELP andavar_schema_versions_total Total schema versions saved.")
+                lines.append("# TYPE andavar_schema_versions_total gauge")
+                lines.append(f'andavar_schema_versions_total {schema_versions}')
+    except Exception:
+        pass
+    finally:
+        if conn:
+            conn.close()
+            
+    return "\n".join(lines) + "\n"
+
 # ── Register routers ──────────────────────────────────────────────────────────
 app.include_router(auth_router)
 app.include_router(user_router)

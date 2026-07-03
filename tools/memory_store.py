@@ -18,6 +18,15 @@ current_user_role: contextvars.ContextVar[Optional[str]] = contextvars.ContextVa
 # In-memory storage fallback for local development or connection failures
 _in_memory_db: Dict[str, List[Dict[str, Any]]] = {}
 
+# Metrics tracker for specialized agent executions
+AGENT_RUNS: Dict[str, int] = {
+    "schema_designer": 0,
+    "sql_generator": 0,
+    "explainer": 0,
+    "mock_data_generator": 0,
+    "andavar_chat": 0
+}
+
 def _clean_db_url(url: str) -> str:
     """Remove parameters unsupported by psycopg2 (e.g. channel_binding)."""
     import re
