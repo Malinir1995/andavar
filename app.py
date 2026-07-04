@@ -5,6 +5,9 @@ from fastapi import FastAPI, HTTPException, Request, Depends, status
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from rate_limit import limiter
 
 logging.basicConfig(
     level=logging.WARNING,  # Suppress INFO noise; only show warnings+
@@ -17,11 +20,15 @@ from agents.root_agent import generate_schema_workflow, run_chat_async
 from tools.memory_store import get_history, get_version, get_schema_diff, bootstrap_admin, get_connection
 from tools.neon_mcp import get_database_schema_introspection, get_db_tables
 from auth import get_current_user, require_role, get_optional_user
+from config import settings
 
 # ── Import route modules ──────────────────────────────────────────────────────
 from routes.users import router as auth_router, user_router
 from routes.projects import router as project_router
 from routes.reports import router as report_router
+
+# ── Rate limiter ──────────────────────────────────────────────────────────────
+# limiter imported from rate_limit.py (shared instance)
 
 app = FastAPI(
     title="Andavar SQL Assistant",
@@ -29,13 +36,98 @@ app = FastAPI(
     version="2.0.0",
 )
 
+# Attach limiter to app
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ── CORS — explicit origin allowlist ──────────────────────────────────────────
+_cors_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Metrics & Instrumentation ────────────────────────────────────────────────
+import time
+from collections import defaultdict
+from fastapi.responses import PlainTextResponse
+
+HTTP_REQUESTS_TOTAL = defaultdict(int)
+HTTP_REQUEST_DURATION_SUM = defaultdict(float)
+ACTIVE_REQUESTS = 0
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    global ACTIVE_REQUESTS
+    path = request.url.path
+    if path == "/metrics":
+        return await call_next(request)
+    
+    method = request.method
+    ACTIVE_REQUESTS += 1
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        return response
+    except Exception as e:
+        status = 500
+        raise e
+    finally:
+        ACTIVE_REQUESTS -= 1
+        duration = time.time() - start_time
+        HTTP_REQUESTS_TOTAL[(method, path, status)] += 1
+        HTTP_REQUEST_DURATION_SUM[(method, path)] += duration
+
+@app.get("/metrics", response_class=PlainTextResponse)
+def get_metrics():
+    lines = []
+    lines.append("# HELP andavar_http_requests_total Total HTTP requests processed.")
+    lines.append("# TYPE andavar_http_requests_total counter")
+    for (method, path, status), count in HTTP_REQUESTS_TOTAL.items():
+        lines.append(f'andavar_http_requests_total{{method="{method}",path="{path}",status="{status}"}} {count}')
+        
+    lines.append("# HELP andavar_http_request_duration_seconds_sum Sum of HTTP request durations in seconds.")
+    lines.append("# TYPE andavar_http_request_duration_seconds_sum counter")
+    for (method, path), duration in HTTP_REQUEST_DURATION_SUM.items():
+        lines.append(f'andavar_http_request_duration_seconds_sum{{method="{method}",path="{path}"}} {duration:.6f}')
+        
+    lines.append("# HELP andavar_active_requests Number of concurrent active requests.")
+    lines.append("# TYPE andavar_active_requests gauge")
+    lines.append(f'andavar_active_requests {ACTIVE_REQUESTS}')
+    
+    from tools.memory_store import AGENT_RUNS
+    lines.append("# HELP andavar_agent_runs_total Total count of specialized agent executions.")
+    lines.append("# TYPE andavar_agent_runs_total counter")
+    for agent_name, count in AGENT_RUNS.items():
+        lines.append(f'andavar_agent_runs_total{{agent="{agent_name}"}} {count}')
+        
+    conn = None
+    try:
+        conn = get_connection()
+        if conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM av_projects")
+                project_count = cur.fetchone()[0]
+                lines.append("# HELP andavar_projects_total Total projects managed by Andavar.")
+                lines.append("# TYPE andavar_projects_total gauge")
+                lines.append(f'andavar_projects_total {project_count}')
+                
+                cur.execute("SELECT COUNT(*) FROM schema_versions")
+                schema_versions = cur.fetchone()[0]
+                lines.append("# HELP andavar_schema_versions_total Total schema versions saved.")
+                lines.append("# TYPE andavar_schema_versions_total gauge")
+                lines.append(f'andavar_schema_versions_total {schema_versions}')
+    except Exception:
+        pass
+    finally:
+        if conn:
+            conn.close()
+            
+    return "\n".join(lines) + "\n"
 
 # ── Register routers ──────────────────────────────────────────────────────────
 app.include_router(auth_router)
@@ -69,6 +161,10 @@ class SetupRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     email: str
     password: str = Field(..., min_length=6)
+
+
+class ConfirmSqlRequest(BaseModel):
+    confirmation_token: str = Field(..., description="Token from execute_write_sql for destructive ops")
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
@@ -143,7 +239,8 @@ def initial_setup(req: SetupRequest):
 
 
 @app.post("/api/chat")
-async def chat(req: ChatRequest, user: dict = Depends(get_current_user)):
+@limiter.limit(settings.rate_limit)
+async def chat(request: Request, req: ChatRequest, user: dict = Depends(get_current_user)):
     """Main conversational endpoint — handles all user messages."""
     from tools.memory_store import current_user_role, set_active_project_context
     current_user_role.set(user["role"])
@@ -188,10 +285,28 @@ def db_status(project_id: Optional[str] = None, user: dict = Depends(get_optiona
         return {"connected": False, "error": str(e)}
 
 
+# ── Destructive SQL confirmation endpoint ─────────────────────────────────────
+
+@app.post("/api/sql/confirm")
+def confirm_sql(req: ConfirmSqlRequest, user: dict = Depends(require_role("manager"))):
+    """Confirm and execute a previously gated destructive SQL operation.
+
+    This is the REST endpoint counterpart of the confirm_destructive_sql tool.
+    The frontend can call this directly with the confirmation_token returned by
+    execute_write_sql when it detects a destructive operation.
+    """
+    from tools.db_tools import confirm_destructive_sql
+    result = confirm_destructive_sql(req.confirmation_token)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
 # ── Legacy schema endpoints (kept for backward compat) ─────────────────────────
 
 @app.post("/api/schema/generate")
-async def generate_schema(req: GenerateRequest, user: dict = Depends(require_role("manager"))):
+@limiter.limit(settings.rate_limit)
+async def generate_schema(request: Request, req: GenerateRequest, user: dict = Depends(require_role("manager"))):
     from tools.memory_store import set_active_project_context
     if req.project_id:
         set_active_project_context(req.project_id)

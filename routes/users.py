@@ -2,7 +2,7 @@
 
 import logging
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from auth import (
     get_current_user,
@@ -13,6 +13,7 @@ from auth import (
 )
 from models import UserCreate, UserLogin, UserResponse, UserUpdate, TokenResponse
 from tools.memory_store import get_connection
+from rate_limit import limiter
 
 logger = logging.getLogger("andavar.routes.users")
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -22,7 +23,8 @@ user_router = APIRouter(prefix="/api/users", tags=["users"])
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
 @router.post("/login", response_model=TokenResponse)
-def login(req: UserLogin):
+@limiter.limit("5/minute")
+def login(request: Request, req: UserLogin):
     conn = get_connection()
     if not conn:
         raise HTTPException(500, "Database not available")

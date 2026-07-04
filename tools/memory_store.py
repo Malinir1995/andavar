@@ -18,6 +18,15 @@ current_user_role: contextvars.ContextVar[Optional[str]] = contextvars.ContextVa
 # In-memory storage fallback for local development or connection failures
 _in_memory_db: Dict[str, List[Dict[str, Any]]] = {}
 
+# Metrics tracker for specialized agent executions
+AGENT_RUNS: Dict[str, int] = {
+    "schema_designer": 0,
+    "sql_generator": 0,
+    "explainer": 0,
+    "mock_data_generator": 0,
+    "andavar_chat": 0
+}
+
 def _clean_db_url(url: str) -> str:
     """Remove parameters unsupported by psycopg2 (e.g. channel_binding)."""
     import re
@@ -139,6 +148,7 @@ def init_db():
                     schema_json JSONB NOT NULL,
                     sql_output TEXT NOT NULL,
                     explanation TEXT NOT NULL,
+                    mock_data_sql TEXT,
                     project_id UUID REFERENCES av_projects(id) ON DELETE CASCADE,
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
@@ -159,6 +169,20 @@ def init_db():
                 END $$;
             """)
 
+            # Add mock_data_sql column if missing
+            cur.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'schema_versions' AND column_name = 'mock_data_sql'
+                    ) THEN
+                        ALTER TABLE schema_versions
+                            ADD COLUMN mock_data_sql TEXT;
+                    END IF;
+                END $$;
+            """)
+
             # ── Reports ───────────────────────────────────────
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS av_reports (
@@ -166,12 +190,24 @@ def init_db():
                     project_id UUID REFERENCES av_projects(id) ON DELETE CASCADE,
                     generated_by UUID REFERENCES av_users(id) ON DELETE SET NULL,
                     title VARCHAR(200) NOT NULL,
-                    report_type VARCHAR(50) NOT NULL
-                        CHECK (report_type IN ('schema_summary', 'version_history', 'full_export')),
+                    report_type VARCHAR(50) NOT NULL,
                     content_json JSONB NOT NULL,
                     content_markdown TEXT,
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
+            """)
+
+            # Drop check constraint to support new report/export types dynamically
+            cur.execute("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.constraint_column_usage
+                        WHERE table_name = 'av_reports' AND constraint_name = 'av_reports_report_type_check'
+                    ) THEN
+                        ALTER TABLE av_reports DROP CONSTRAINT av_reports_report_type_check;
+                    END IF;
+                END $$;
             """)
 
             conn.commit()
@@ -194,6 +230,7 @@ def save_version(
     explanation: str,
     label: Optional[str] = None,
     project_id: Optional[str] = None,
+    mock_data_sql: Optional[str] = None,
 ) -> int:
     conn = get_connection()
     if conn:
@@ -206,10 +243,10 @@ def save_version(
                 max_ver = cur.fetchone()[0]
                 next_ver = max_ver + 1
                 cur.execute(
-                    """INSERT INTO schema_versions (session_id, version_number, label, schema_json, sql_output, explanation, project_id)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                    """INSERT INTO schema_versions (session_id, version_number, label, schema_json, sql_output, explanation, project_id, mock_data_sql)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
                     (session_id, next_ver, label, json.dumps(schema_json), sql_output, explanation,
-                     project_id if project_id else None)
+                     project_id if project_id else None, mock_data_sql)
                 )
                 conn.commit()
                 return next_ver
@@ -229,6 +266,7 @@ def save_version(
         "session_id": session_id, "version_number": next_ver,
         "label": label or f"v{next_ver}", "schema_json": schema_json,
         "sql_output": sql_output, "explanation": explanation,
+        "mock_data_sql": mock_data_sql,
     })
     return next_ver
 
@@ -256,7 +294,7 @@ def get_version(session_id: str, version_number: int) -> Optional[Dict[str, Any]
         try:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
-                    "SELECT version_number, label, schema_json, sql_output, explanation, created_at FROM schema_versions WHERE session_id = %s AND version_number = %s",
+                    "SELECT version_number, label, schema_json, sql_output, explanation, mock_data_sql, created_at FROM schema_versions WHERE session_id = %s AND version_number = %s",
                     (session_id, version_number)
                 )
                 row = cur.fetchone()
@@ -282,7 +320,7 @@ def get_latest_version(session_id: str) -> Optional[Dict[str, Any]]:
         try:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
-                    "SELECT version_number, label, schema_json, sql_output, explanation, created_at FROM schema_versions WHERE session_id = %s ORDER BY version_number DESC LIMIT 1",
+                    "SELECT version_number, label, schema_json, sql_output, explanation, mock_data_sql, created_at FROM schema_versions WHERE session_id = %s ORDER BY version_number DESC LIMIT 1",
                     (session_id,)
                 )
                 row = cur.fetchone()

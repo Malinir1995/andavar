@@ -85,7 +85,7 @@ class ProjectDetail(ProjectResponse):
 class ReportRequest(BaseModel):
     project_id: str
     report_type: str = Field(
-        ..., pattern="^(schema_summary|version_history|full_export)$"
+        ..., pattern="^(schema_summary|version_history|full_export|prisma|sqlalchemy|mermaid_erd|standalone_sql)$"
     )
     title: Optional[str] = None
 
