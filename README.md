@@ -19,7 +19,7 @@ Andavar is an intelligent, professional-grade, multi-agent database schema desig
 
 ## 💡 Core Concept & Value
 
-Database schema design is a highly specialized skill. Poor decisions early in a system's lifecycle—such as improper normalization, missing indexes, or weak foreign key constraints—lead to performance degradation, data corruption, and high maintenance costs. 
+Database schema design is a highly specialized skill. Poor decisions early in a system's lifecycle—such as improper normalization, missing indexes, or weak foreign key constraints—lead to performance degradation, data corruption, and high maintenance costs.
 
 Andavar solves this by orchestrating a **network of collaborative AI agents** that work together to act as a virtual principal database administrator. By breaking the design down into specialized tasks, Andavar achieves a level of schema consistency, normal form correctness, and security checking that single-agent LLM systems cannot match.
 
@@ -89,7 +89,7 @@ Andavar integrates directly with the **Neon Model Context Protocol (MCP) server*
 
 ## 🌐 RFC 10008: Safe HTTP QUERY Method Integration
 
-To follow modern web standards, Andavar is built using the newly standardized **HTTP QUERY method (RFC 10008)**. 
+To follow modern web standards, Andavar is built using the newly standardized **HTTP QUERY method (RFC 10008)**.
 
 ### Why QUERY?
 Traditional web applications had to choose between two non-ideal options for complex, read-only search/export payloads:
@@ -111,12 +111,34 @@ Andavar uses `QUERY` for its **Schema Reports & Exports API** (`/api/reports/gen
 - **Glassmorphism Visual Style:** Dark-themed responsive interface (`#0b0f19` background, `#8b5cf6` accents, and custom monochrome SVGs).
 - **Multi-Tenant Project Isolation:** Configure database connection URLs, API keys, and models independently per project.
 - **Robust Error Recovery:** Integrated exponential backoff for Gemini API calls to prevent 429 quota errors.
+- **Local & Secure DB Execution:** All schemas and data are securely managed in a local Dockerized PostgreSQL instance (`devx-postgres`).
+- **Role-Based Access Control:** `Admin` (full control), `Manager` (project management), `Guest` (read-only).
 
 ---
 
 ## 🛠️ Technical Setup & Installation
 
-### Local Development Setup
+### 📦 Running via Docker (Recommended)
+
+Andavar is built with Docker in mind and continuously published to GitHub Container Registry (GHCR).
+
+```bash
+# 1. Pull the image from GHCR
+docker pull ghcr.io/malinir1995/andavar:latest
+
+# 2. Run the application (ensure a PostgreSQL instance is accessible)
+docker run -p 8000:8000 --env-file .env ghcr.io/malinir1995/andavar:latest
+```
+
+Or run with the bundled PostgreSQL instance via Docker Compose:
+
+```bash
+docker-compose up --build
+```
+
+This launches Andavar and maps PostgreSQL securely to your local machine.
+
+### 💻 Local Development Setup
 
 1. **Clone the repository:**
    ```bash
@@ -148,17 +170,32 @@ Andavar uses `QUERY` for its **Schema Reports & Exports API** (`/api/reports/gen
    ```
    Open `http://localhost:8000` in your browser.
 
-### Running via Docker Compose (Recommended)
-
-To run the application along with a secure, on-premises PostgreSQL instance:
-```bash
-docker-compose up --build
-```
-This launches Andavar and maps PostgreSQL securely to your local machine.
-
 ---
 
 ## 🔐 Security & Multi-Tenancy
 
-- **No Default Credentials:** The first user to access Andavar is prompted to configure the Admin account interactively via the UI.
+For maximum security, Andavar does not ship with a hardcoded default admin account.
+
+**Option 1: Web Interface Setup (Interactive)**
+If the system database is empty, the first user to navigate to the web interface will be presented with a `/setup` screen. From there, you can define your custom admin username, email, and password.
+
+**Option 2: Environment Variables (Automated)**
+You can pre-configure the initial admin by setting the following variables in your `.env` or Docker environment. The app will automatically bootstrap this account on startup:
+```env
+ADMIN_EMAIL=your_email@example.com
+ADMIN_USERNAME=your_admin_name
+ADMIN_PASSWORD=your_secure_password
+```
+*(Once an admin exists, these variables are ignored.)*
+
+- **No Default Credentials:** Zero hardcoded default credentials.
 - **Context Isolation:** Active project settings are managed using asynchronous context variables (`ContextVar`), guaranteeing that developers in one project never accidentally access the schema or connection details of another.
+
+---
+
+## 📚 Usage Workflow
+
+1. **Create a Project**: Log in as an Admin/Manager and create a new project. You can define a specific `DATABASE_URL` and Gemini model just for this project.
+2. **Chat with Andavar**: Use the chat interface to describe your system (e.g., "Design a schema for a SaaS billing platform").
+3. **Review & Iterate**: Andavar will output the Schema Design, PostgreSQL syntax, and an Explanation.
+4. **Execute**: Once satisfied, apply the SQL directly to the project's target database.
