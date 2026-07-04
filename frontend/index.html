@@ -1,715 +1,1865 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Andavar — SQL & Schema Assistant</title>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-:root{
-  --bg:#0b0f19;
-  --sidebar:#111827;
-  --card:rgba(31, 41, 55, 0.45);
-  --border:rgba(255, 255, 255, 0.08);
-  --accent:#8b5cf6;
-  --accent-hover:#7c3aed;
-  --text:#f3f4f6;
-  --muted:#9ca3af;
-  --danger:#ef4444;
-  --danger-hover:#dc2626;
-  --user-bg:linear-gradient(135deg,#8b5cf6,#7c3aed);
-  --code-bg:#090d16;
-  --radius:12px;
-  --font:'Outfit','Inter',sans-serif;
-  --mono:'JetBrains Mono',monospace;
-}
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden;}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Andavar — SQL & Schema Assistant</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-.icon-svg {
-  width: 16px;
-  height: 16px;
-  stroke: currentColor;
-  stroke-width: 2;
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vertical-align: middle;
-}
-.icon-svg.large {
-  width: 48px;
-  height: 48px;
-}
-.icon-svg.med {
-  width: 20px;
-  height: 20px;
-}
+    :root {
+      --bg: #0b0f19;
+      --sidebar: #111827;
+      --card: rgba(31, 41, 55, 0.45);
+      --border: rgba(255, 255, 255, 0.08);
+      --accent: #8b5cf6;
+      --accent-hover: #7c3aed;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --user-bg: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      --code-bg: #090d16;
+      --radius: 12px;
+      --font: 'Outfit', 'Inter', sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
 
-/* ── Auth Screen ── */
-#auth-screen{
-  position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(circle at center, #1e1b4b 0%, var(--bg) 100%);
-  display:flex;align-items:center;justify-content:center;z-index:1000;
-  transition: opacity 0.3s ease;
-}
-.auth-card{
-  width:420px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px;
-  box-shadow:0 20px 40px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:24px;
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-}
-.auth-header{text-align:center;}
-.auth-logo{margin-bottom:12px;color:var(--accent);display:flex;justify-content:center;}
-.auth-title{font-size:24px;font-weight:700;margin-bottom:6px;background:linear-gradient(135deg,var(--accent),#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-.auth-desc{color:var(--muted);font-size:13px;}
-.form-group{display:flex;flex-direction:column;gap:6px;}
-.form-group label{font-size:12px;font-weight:600;color:var(--text);}
-.form-group input, .form-group select, .form-group textarea{
-  width:100%;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;
-  color:var(--text);font-family:var(--font);font-size:13px;outline:none;transition:border-color 0.2s;
-}
-.form-group input:focus, .form-group select:focus, .form-group textarea:focus{border-color:var(--accent);}
-.auth-btn{
-  width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:var(--font);
-  font-size:14px;font-weight:600;cursor:pointer;transition:background 0.2s;margin-top:8px;
-}
-.auth-btn:hover{background:var(--accent-hover);}
+    html,
+    body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      overflow: hidden;
+    }
 
-/* ── Main Layout ── */
-#app{display:none;height:100vh;overflow:hidden;}
+    .icon-svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vertical-align: middle;
+    }
 
-/* ── Sidebar ── */
-#sidebar{width:280px;min-width:280px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
-.sidebar-header{padding:18px 16px 14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:12px;}
-.logo{display:flex;align-items:center;gap:10px;}
-.logo-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;}
-.logo-text{font-size:15px;font-weight:700;letter-spacing:-.3px;}
-.logo-sub{font-size:10px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;}
+    .icon-svg.large {
+      width: 48px;
+      height: 48px;
+    }
 
-.project-select-wrap{display:flex;flex-direction:column;gap:4px;}
-.project-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
-#project-selector{
-  width:100%;padding:8px 10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:6px;
-  color:var(--text);font-family:var(--font);font-size:12px;outline:none;cursor:pointer;
-}
-#project-selector:focus{border-color:var(--accent);}
+    .icon-svg.med {
+      width: 20px;
+      height: 20px;
+    }
 
-#new-chat-btn{width:100%;padding:9px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:13px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;transition:all .2s;}
-#new-chat-btn:hover{background:var(--card);border-color:var(--accent);}
+    /* ── Auth Screen ── */
+    #auth-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, #1e1b4b 0%, var(--bg) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: opacity 0.3s ease;
+    }
 
-#db-status{margin:12px 16px;padding:8px 12px;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);}
-.status-dot{width:7px;height:7px;border-radius:50%;background:#6b7280;flex-shrink:0;}
-.status-dot.connected{background:var(--accent);box-shadow:0 0 6px var(--accent);}
-.status-dot.error{background:var(--danger);}
-#status-text{color:var(--muted);font-size:11px;}
+    .auth-card {
+      width: 420px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
 
-.sidebar-section{padding:8px 16px 4px;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;}
-#table-list{flex:1;overflow-y:auto;padding:4px 8px 16px;}
-#table-list::-webkit-scrollbar{width:4px;}
-#table-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
-.table-item{padding:7px 10px;border-radius:6px;cursor:pointer;color:var(--muted);font-size:12px;display:flex;align-items:center;gap:7px;transition:all .15s;font-family:var(--mono);}
-.table-item:hover{background:var(--card);color:var(--text);}
-.table-icon{font-size:10px;opacity:.7;}
-.no-tables{padding:12px 10px;color:var(--muted);font-size:12px;font-style:italic;}
+    .auth-header {
+      text-align: center;
+    }
 
-/* Sidebar User Info */
-.sidebar-footer{
-  padding:14px 16px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:12px;background:rgba(255,255,255,0.01);
-}
-.user-profile{display:flex;align-items:center;gap:10px;}
-.user-avatar{width:36px;height:36px;border-radius:50%;background:var(--user-bg);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:14px;}
-.user-details{display:flex;flex-direction:column;gap:2px;}
-.user-name{font-weight:600;font-size:13px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.user-role{font-size:10px;text-transform:uppercase;background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:4px;color:var(--accent);font-weight:700;width:fit-content;}
-.user-actions{display:flex;gap:6px;}
-.footer-btn{
-  flex:1;padding:8px;background:var(--card);border:1px solid var(--border);border-radius:6px;
-  color:var(--text);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-}
-.footer-btn:hover{background:var(--border);border-color:var(--muted);}
+    .auth-logo {
+      margin-bottom: 12px;
+      color: var(--accent);
+      display: flex;
+      justify-content: center;
+    }
 
-/* ── Main Area ── */
-#main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
-#topbar{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-#topbar-title{font-size:14px;font-weight:600;color:var(--text);}
-.topbar-right{display:flex;align-items:center;gap:12px;}
-#session-badge{font-size:10px;color:var(--muted);font-family:var(--mono);background:var(--card);padding:3px 8px;border-radius:4px;border:1px solid var(--border);}
+    .auth-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      background: linear-gradient(135deg, var(--accent), #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
 
-#chat-area{flex:1;overflow-y:auto;padding:24px 0;scroll-behavior:smooth;}
-#chat-area::-webkit-scrollbar{width:5px;}
-#chat-area::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
-#messages{max-width:820px;margin:0 auto;padding:0 20px;display:flex;flex-direction:column;gap:20px;}
+    .auth-desc {
+      color: var(--muted);
+      font-size: 13px;
+    }
 
-/* Empty State */
-#empty-state{text-align:center;padding:60px 20px;max-width:540px;margin:0 auto;}
-.empty-icon{margin-bottom:16px;opacity:.7;color:var(--accent);display:flex;justify-content:center;}
-.empty-title{font-size:24px;font-weight:700;margin-bottom:8px;background:linear-gradient(135deg,var(--accent),#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-.empty-desc{color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:28px;}
-.suggestions{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.suggestion-chip{padding:12px;background:var(--card);border:1px solid var(--border);border-radius:8px;cursor:pointer;text-align:left;font-size:12px;color:var(--muted);font-family:var(--font);transition:all .2s;line-height:1.4;backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);}
-.suggestion-chip:hover{border-color:var(--accent);color:var(--text);background:rgba(255,255,255,0.02);}
-.suggestion-chip strong{display:block;color:var(--text);margin-bottom:2px;font-size:12px;display:flex;align-items:center;}
-.suggestion-chip strong svg{margin-right:6px;}
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
 
-/* ── Messages ── */
-.message{display:flex;flex-direction:column;gap:6px;animation:fadein .2s ease;}
-@keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
-.message.user{align-items:flex-end;}
-.message.assistant{align-items:flex-start;}
-.msg-meta{font-size:10px;color:var(--muted);padding:0 4px;}
-.msg-bubble{max-width:90%;padding:14px 18px;border-radius:var(--radius);line-height:1.65;font-size:13.5px;}
-.message.user .msg-bubble{background:var(--user-bg);color:#fff;border-bottom-right-radius:4px;font-weight:400;}
-.message.assistant .msg-bubble{background:var(--card);border:1px solid var(--border);border-bottom-left-radius:4px;color:var(--text);min-width:120px;backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);}
+    .form-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
 
-.msg-bubble h1,.msg-bubble h2,.msg-bubble h3{font-size:14px;font-weight:600;margin:12px 0 6px;}
-.msg-bubble h1:first-child,.msg-bubble h2:first-child,.msg-bubble h3:first-child{margin-top:0;}
-.msg-bubble p{margin:0 0 8px;}
-.msg-bubble p:last-child{margin-bottom:0;}
-.msg-bubble ul,.msg-bubble ol{padding-left:18px;margin:6px 0;}
-.msg-bubble li{margin:3px 0;}
-.msg-bubble strong{color:#fff;}
-.msg-bubble em{color:#a1a1aa;}
-.msg-bubble a{color:var(--accent);text-decoration:none;}
-.msg-bubble a:hover{text-decoration:underline;}
-.msg-bubble hr{border:none;border-top:1px solid var(--border);margin:10px 0;}
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
 
-/* Code in chat */
-.msg-bubble pre{margin:10px 0;border-radius:8px;overflow:hidden;position:relative;}
-.msg-bubble pre code{font-family:var(--mono);font-size:12px;display:block;padding:14px 16px;background:var(--code-bg)!important;}
-.msg-bubble code:not(pre code){font-family:var(--mono);font-size:12px;background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;}
-.copy-btn{position:absolute;top:8px;right:8px;background:rgba(255,255,255,.1);border:none;color:var(--muted);font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;font-family:var(--font);transition:all .15s;}
-.copy-btn:hover{background:rgba(255,255,255,.2);color:var(--text);}
-.copy-btn.copied{color:var(--accent);}
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      border-color: var(--accent);
+    }
 
-/* Tables in chat */
-.msg-bubble table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px;font-family:var(--mono);}
-.msg-bubble th{background:rgba(255,255,255,.05);padding:7px 12px;text-align:left;border-bottom:1px solid var(--border);font-weight:600;color:var(--accent);}
-.msg-bubble td{padding:6px 12px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text);}
-.msg-bubble tr:last-child td{border-bottom:none;}
-.msg-bubble tr:hover td{background:rgba(255,255,255,.02);}
+    .auth-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 8px;
+    }
 
-/* Typing indicator */
-#typing{display:none;align-items:flex-start;gap:10px;padding:0;max-width:820px;margin:0 auto;padding:0 20px;}
-#typing.visible{display:flex;}
-.typing-bubble{background:var(--card);border:1px solid var(--border);padding:12px 18px;border-radius:var(--radius);border-bottom-left-radius:4px;display:flex;align-items:center;gap:5px;backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);}
-.dot{width:6px;height:6px;background:var(--muted);border-radius:50%;animation:bounce .9s infinite;}
-.dot:nth-child(2){animation-delay:.2s;}
-.dot:nth-child(3){animation-delay:.4s;}
+    .auth-btn:hover {
+      background: var(--accent-hover);
+    }
 
-/* ── Input ── */
-#input-area{padding:16px 20px;border-top:1px solid var(--border);flex-shrink:0;}
-#input-wrap{max-width:820px;margin:0 auto;display:flex;gap:10px;align-items:flex-end;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;transition:border-color .2s;backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);}
-#input-wrap:focus-within{border-color:var(--accent);}
-#msg-input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:14px;resize:none;min-height:22px;max-height:160px;line-height:1.5;}
-#msg-input::placeholder{color:var(--muted);}
-#send-btn{width:34px;height:34px;background:var(--accent);border:none;border-radius:8px;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;align-self:flex-end;}
-#send-btn:hover{background:var(--accent-hover);}
-#send-btn:disabled{background:var(--border);cursor:not-allowed;}
-#send-btn svg{width:16px;height:16px;}
-.hint{text-align:center;font-size:11px;color:var(--muted);margin-top:8px;max-width:820px;margin:8px auto 0;}
+    /* ── Main Layout ── */
+    #app {
+      display: none;
+      height: 100vh;
+      overflow: hidden;
+    }
 
-/* ── Modal overlay and content ── */
-.modal-overlay{
-  position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(10px);
-  display:none;align-items:center;justify-content:center;z-index:900;opacity:0;transition:opacity 0.2s ease;
-}
-.modal-overlay.visible{display:flex;opacity:1;}
-.modal-card{
-  width:780px;max-width:90%;height:600px;background:var(--card);border:1px solid var(--border);
-  border-radius:16px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 48px rgba(0,0,0,0.6);
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-}
-.modal-header{
-  padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;
-}
-.modal-title{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px;}
-.modal-title svg{color:var(--accent);}
-.close-modal{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;transition:color 0.2s;}
-.close-modal:hover{color:var(--text);}
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 280px;
+      min-width: 280px;
+      background: var(--sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
-.modal-body{flex:1;display:flex;overflow:hidden;}
-.modal-tabs{
-  width:160px;border-right:1px solid var(--border);background:rgba(0,0,0,0.15);padding:16px 8px;display:flex;flex-direction:column;gap:6px;
-}
-.tab-btn{
-  width:100%;padding:10px 12px;background:none;border:none;border-radius:6px;color:var(--muted);
-  text-align:left;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;
-  display:flex;align-items:center;gap:8px;
-}
-.tab-btn:hover{color:var(--text);background:rgba(255,255,255,0.02);}
-.tab-btn.active{color:var(--accent);background:rgba(139,92,246,0.08);font-weight:600;}
-.tab-btn svg{width:14px;height:14px;}
+    .sidebar-header {
+      padding: 18px 16px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
 
-.modal-content{flex:1;padding:24px;overflow-y:auto;display:flex;flex-direction:column;gap:20px;}
-.modal-content::-webkit-scrollbar{width:4px;}
-.modal-content::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
 
-/* Lists, tables and elements inside Modals */
-.settings-section-title{font-size:14px;font-weight:600;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
-.btn-small{padding:6px 12px;background:var(--accent);border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:500;cursor:pointer;transition:background 0.2s;}
-.btn-small:hover{background:var(--accent-hover);}
-.btn-secondary{background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text);}
-.btn-secondary:hover{background:rgba(255,255,255,0.1);}
-.btn-danger{background:var(--danger);}
-.btn-danger:hover{background:var(--danger-hover);}
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
 
-.table-responsive{width:100%;overflow-x:auto;border:1px solid var(--border);border-radius:8px;}
-.modal-table{width:100%;border-collapse:collapse;font-size:12px;text-align:left;}
-.modal-table th{background:rgba(0,0,0,0.2);padding:10px 12px;border-bottom:1px solid var(--border);font-weight:600;color:var(--muted);}
-.modal-table td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
-.modal-table tr:last-child td{border-bottom:none;}
-.modal-table tr:hover td{background:rgba(255,255,255,0.01);}
+    .logo-text {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -.3px;
+    }
 
-.actions-cell{display:flex;gap:6px;}
-.icon-btn{background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;border-radius:4px;transition:all 0.2s;}
-.icon-btn:hover{color:var(--text);background:rgba(255,255,255,0.05);}
-.icon-btn.delete-icon:hover{color:var(--danger);background:rgba(239,68,68,0.08);}
+    .logo-sub {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
 
-/* Report View Specific Styles */
-.report-layout{display:flex;flex-direction:column;gap:16px;height:100%;overflow:hidden;}
-.report-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.report-preview-container{flex:1;border:1px solid var(--border);border-radius:8px;background:var(--code-bg);display:flex;flex-direction:column;overflow:hidden;min-height:220px;}
-.report-preview-header{padding:8px 12px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.01);display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);}
-.report-preview-body{flex:1;padding:16px;overflow-y:auto;font-family:var(--mono);font-size:12px;white-space:pre-wrap;color:var(--text);}
-.report-preview-body::-webkit-scrollbar{width:4px;}
-.report-preview-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+    .project-select-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
 
-/* Toast / Notifications */
-#toast{
-  position:fixed;bottom:20px;right:20px;padding:12px 24px;border-radius:8px;background:var(--card);
-  border:1px solid var(--border);color:var(--text);box-shadow:0 10px 20px rgba(0,0,0,0.4);
-  font-size:13px;z-index:2000;display:flex;align-items:center;gap:10px;transform:translateY(100px);opacity:0;transition:all 0.3s ease;
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-}
-#toast.visible{transform:translateY(0);opacity:1;}
-#toast.success{border-color:var(--accent);color:var(--accent);}
-#toast.error{border-color:var(--danger);color:var(--danger);}
+    .project-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
 
-/* Warning Banner for Guest mode */
-#guest-banner{
-  display:none;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:var(--danger);
-  padding:8px 16px;border-radius:8px;font-size:12px;align-items:center;gap:8px;margin:0 20px 12px;
-}
-</style>
+    #project-selector {
+      width: 100%;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    #project-selector:focus {
+      border-color: var(--accent);
+    }
+
+    #new-chat-btn {
+      width: 100%;
+      padding: 9px 14px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all .2s;
+    }
+
+    #new-chat-btn:hover {
+      background: var(--card);
+      border-color: var(--accent);
+    }
+
+    #db-status {
+      margin: 12px 16px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #6b7280;
+      flex-shrink: 0;
+    }
+
+    .status-dot.connected {
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+    }
+
+    .status-dot.error {
+      background: var(--danger);
+    }
+
+    #status-text {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .sidebar-section {
+      padding: 8px 16px 4px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: .8px;
+      text-transform: uppercase;
+    }
+
+    #table-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 8px 16px;
+    }
+
+    #table-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #table-list::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    .table-item {
+      padding: 7px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: all .15s;
+      font-family: var(--mono);
+    }
+
+    .table-item:hover {
+      background: var(--card);
+      color: var(--text);
+    }
+
+    .table-icon {
+      font-size: 10px;
+      opacity: .7;
+    }
+
+    .no-tables {
+      padding: 12px 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-style: italic;
+    }
+
+    /* Sidebar User Info */
+    .sidebar-footer {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--user-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .user-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .user-name {
+      font-weight: 600;
+      font-size: 13px;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .user-role {
+      font-size: 10px;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: var(--accent);
+      font-weight: 700;
+      width: fit-content;
+    }
+
+    .user-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .footer-btn {
+      flex: 1;
+      padding: 8px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .footer-btn:hover {
+      background: var(--border);
+      border-color: var(--muted);
+    }
+
+    /* ── Main Area ── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    #topbar {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    #topbar-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #session-badge {
+      font-size: 10px;
+      color: var(--muted);
+      font-family: var(--mono);
+      background: var(--card);
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    #chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 0;
+      scroll-behavior: smooth;
+    }
+
+    #chat-area::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    #chat-area::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    #messages {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Empty State */
+    #empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      max-width: 540px;
+      margin: 0 auto;
+    }
+
+    .empty-icon {
+      margin-bottom: 16px;
+      opacity: .7;
+      color: var(--accent);
+      display: flex;
+      justify-content: center;
+    }
+
+    .empty-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--accent), #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .empty-desc {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    .suggestions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .suggestion-chip {
+      padding: 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: left;
+      font-size: 12px;
+      color: var(--muted);
+      font-family: var(--font);
+      transition: all .2s;
+      line-height: 1.4;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .suggestion-chip:hover {
+      border-color: var(--accent);
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .suggestion-chip strong {
+      display: block;
+      color: var(--text);
+      margin-bottom: 2px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+    }
+
+    .suggestion-chip strong svg {
+      margin-right: 6px;
+    }
+
+    /* ── Messages ── */
+    .message {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      animation: fadein .2s ease;
+    }
+
+    @keyframes fadein {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .message.user {
+      align-items: flex-end;
+    }
+
+    .message.assistant {
+      align-items: flex-start;
+    }
+
+    .msg-meta {
+      font-size: 10px;
+      color: var(--muted);
+      padding: 0 4px;
+    }
+
+    .msg-bubble {
+      max-width: 90%;
+      padding: 14px 18px;
+      border-radius: var(--radius);
+      line-height: 1.65;
+      font-size: 13.5px;
+    }
+
+    .message.user .msg-bubble {
+      background: var(--user-bg);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+      font-weight: 400;
+    }
+
+    .message.assistant .msg-bubble {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+      color: var(--text);
+      min-width: 120px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .msg-bubble h1,
+    .msg-bubble h2,
+    .msg-bubble h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 12px 0 6px;
+    }
+
+    .msg-bubble h1:first-child,
+    .msg-bubble h2:first-child,
+    .msg-bubble h3:first-child {
+      margin-top: 0;
+    }
+
+    .msg-bubble p {
+      margin: 0 0 8px;
+    }
+
+    .msg-bubble p:last-child {
+      margin-bottom: 0;
+    }
+
+    .msg-bubble ul,
+    .msg-bubble ol {
+      padding-left: 18px;
+      margin: 6px 0;
+    }
+
+    .msg-bubble li {
+      margin: 3px 0;
+    }
+
+    .msg-bubble strong {
+      color: #fff;
+    }
+
+    .msg-bubble em {
+      color: #a1a1aa;
+    }
+
+    .msg-bubble a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .msg-bubble a:hover {
+      text-decoration: underline;
+    }
+
+    .msg-bubble hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 10px 0;
+    }
+
+    /* Code in chat */
+    .msg-bubble pre {
+      margin: 10px 0;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .msg-bubble pre code {
+      font-family: var(--mono);
+      font-size: 12px;
+      display: block;
+      padding: 14px 16px;
+      background: var(--code-bg) !important;
+    }
+
+    .msg-bubble code:not(pre code) {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: rgba(255, 255, 255, .08);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(255, 255, 255, .1);
+      border: none;
+      color: var(--muted);
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: all .15s;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, .2);
+      color: var(--text);
+    }
+
+    .copy-btn.copied {
+      color: var(--accent);
+    }
+
+    /* Tables in chat */
+    .msg-bubble table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 12px;
+      font-family: var(--mono);
+    }
+
+    .msg-bubble th {
+      background: rgba(255, 255, 255, .05);
+      padding: 7px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .msg-bubble td {
+      padding: 6px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, .04);
+      color: var(--text);
+    }
+
+    .msg-bubble tr:last-child td {
+      border-bottom: none;
+    }
+
+    .msg-bubble tr:hover td {
+      background: rgba(255, 255, 255, .02);
+    }
+
+    /* Typing indicator */
+    #typing {
+      display: none;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 0;
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    #typing.visible {
+      display: flex;
+    }
+
+    .typing-bubble {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 12px 18px;
+      border-radius: var(--radius);
+      border-bottom-left-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      background: var(--muted);
+      border-radius: 50%;
+      animation: bounce .9s infinite;
+    }
+
+    .dot:nth-child(2) {
+      animation-delay: .2s;
+    }
+
+    .dot:nth-child(3) {
+      animation-delay: .4s;
+    }
+
+    /* ── Input ── */
+    #input-area {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    #input-wrap {
+      max-width: 820px;
+      margin: 0 auto;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      transition: border-color .2s;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    #input-wrap:focus-within {
+      border-color: var(--accent);
+    }
+
+    #msg-input {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      resize: none;
+      min-height: 22px;
+      max-height: 160px;
+      line-height: 1.5;
+    }
+
+    #msg-input::placeholder {
+      color: var(--muted);
+    }
+
+    #send-btn {
+      width: 34px;
+      height: 34px;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all .2s;
+      align-self: flex-end;
+    }
+
+    #send-btn:hover {
+      background: var(--accent-hover);
+    }
+
+    #send-btn:disabled {
+      background: var(--border);
+      cursor: not-allowed;
+    }
+
+    #send-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .hint {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 8px;
+      max-width: 820px;
+      margin: 8px auto 0;
+    }
+
+    /* ── Modal overlay and content ── */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(10px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 900;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.visible {
+      display: flex;
+      opacity: 1;
+    }
+
+    .modal-card {
+      width: 780px;
+      max-width: 90%;
+      height: 600px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .modal-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-title svg {
+      color: var(--accent);
+    }
+
+    .close-modal {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 20px;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .close-modal:hover {
+      color: var(--text);
+    }
+
+    .modal-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .modal-tabs {
+      width: 160px;
+      border-right: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.15);
+      padding: 16px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tab-btn {
+      width: 100%;
+      padding: 10px 12px;
+      background: none;
+      border: none;
+      border-radius: 6px;
+      color: var(--muted);
+      text-align: left;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      background: rgba(139, 92, 246, 0.08);
+      font-weight: 600;
+    }
+
+    .tab-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .modal-content {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .modal-content::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .modal-content::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    /* Lists, tables and elements inside Modals */
+    .settings-section-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .btn-small {
+      padding: 6px 12px;
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-small:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: var(--danger-hover);
+    }
+
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .modal-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    .modal-table th {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .modal-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: middle;
+    }
+
+    .modal-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .modal-table tr:hover td {
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .actions-cell {
+      display: flex;
+      gap: 6px;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .icon-btn.delete-icon:hover {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.08);
+    }
+
+    /* Report View Specific Styles */
+    .report-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .report-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .report-preview-container {
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--code-bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 220px;
+    }
+
+    .report-preview-header {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.01);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .report-preview-body {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.7;
+    }
+
+    .report-preview-body::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .report-preview-body::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    .report-preview-body h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 12px;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    .report-preview-body h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 16px 0 8px;
+      color: var(--accent);
+    }
+
+    .report-preview-body h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 12px 0 6px;
+    }
+
+    .report-preview-body p {
+      margin: 4px 0 8px;
+    }
+
+    .report-preview-body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 16px;
+      font-size: 12px;
+      font-family: var(--mono);
+    }
+
+    .report-preview-body th,
+    .report-preview-body td {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+
+    .report-preview-body th {
+      background: rgba(139, 92, 246, 0.1);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .report-preview-body pre {
+      background: var(--code-bg);
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 8px 0;
+      border: 1px solid var(--border);
+    }
+
+    .report-preview-body code {
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .report-preview-body strong {
+      color: var(--text);
+    }
+
+    .report-preview-body em {
+      color: var(--muted);
+    }
+
+    /* Visualizer Modal */
+    #visualizer-modal .modal-box {
+      max-width: 95vw;
+      width: 1100px;
+      height: 80vh;
+    }
+
+    #visualizer-modal .modal-body {
+      height: calc(100% - 60px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .viz-toolbar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 0;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .viz-toolbar button {
+      padding: 6px 14px;
+    }
+
+    .viz-container {
+      flex: 1;
+      overflow: auto;
+      background: var(--code-bg);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .viz-container svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .viz-container .mermaid {
+      width: 100%;
+      text-align: center;
+    }
+
+    .viz-empty {
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+      padding: 40px;
+    }
+
+    /* Toast / Notifications */
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+      font-size: 13px;
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    #toast.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    #toast.success {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    #toast.error {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    /* Warning Banner for Guest mode */
+    #guest-banner {
+      display: none;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      align-items: center;
+      gap: 8px;
+      margin: 0 20px 12px;
+    }
+  </style>
 </head>
+
 <body>
 
-<!-- Toast -->
-<div id="toast"></div>
+  <!-- Toast -->
+  <div id="toast"></div>
 
-<!-- Auth Screen (Login/Setup) -->
-<div id="auth-screen">
-  <div class="auth-card" id="auth-card">
-    <div class="auth-header">
-      <div class="auth-logo">
-        <svg class="icon-svg large" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
-      </div>
-      <div class="auth-title" id="auth-title">Andavar</div>
-      <div class="auth-desc" id="auth-desc">Authenticating with the schema agent...</div>
-    </div>
-    
-    <div id="auth-form-container" style="display:flex; flex-direction:column; gap:16px;">
-      <!-- Dynamic Form inserted by JS -->
-    </div>
-  </div>
-</div>
-
-<!-- Main App Container -->
-<div id="app">
-  <!-- Sidebar -->
-  <aside id="sidebar">
-    <div class="sidebar-header">
-      <div class="logo">
-        <div class="logo-icon">
-          <svg class="icon-svg" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
+  <!-- Auth Screen (Login/Setup) -->
+  <div id="auth-screen">
+    <div class="auth-card" id="auth-card">
+      <div class="auth-header">
+        <div class="auth-logo">
+          <svg class="icon-svg large" viewBox="0 0 24 24">
+            <ellipse cx="12" cy="5" rx="9" ry="3" />
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+            <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3" />
+          </svg>
         </div>
-        <div>
-          <div class="logo-text">Andavar</div>
-          <div class="logo-sub">SQL Assistant</div>
-        </div>
-      </div>
-      
-      <!-- Project Selection -->
-      <div class="project-select-wrap">
-        <label class="project-label">Active Project</label>
-        <select id="project-selector" onchange="onProjectChanged()">
-          <!-- Populated dynamically -->
-        </select>
+        <div class="auth-title" id="auth-title">Andavar</div>
+        <div class="auth-desc" id="auth-desc">Authenticating with the schema agent...</div>
       </div>
 
-      <button id="new-chat-btn" onclick="newChat()">
-        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2v20M2 12h20"/></svg> New conversation
-      </button>
-    </div>
-
-    <div id="db-status">
-      <div class="status-dot" id="status-dot"></div>
-      <span id="status-text">Connecting…</span>
-    </div>
-
-    <div class="sidebar-section">Tables</div>
-    <div id="table-list"><div class="no-tables">Loading…</div></div>
-
-    <!-- Sidebar footer user info & options -->
-    <div class="sidebar-footer">
-      <div class="user-profile">
-        <div class="user-avatar" id="user-avatar-lbl">U</div>
-        <div class="user-details">
-          <span class="user-name" id="user-name-lbl">User</span>
-          <span class="user-role" id="user-role-lbl">guest</span>
-        </div>
-      </div>
-      <div class="user-actions">
-        <button class="footer-btn" id="reports-btn" onclick="openReportsModal()" title="Reports & Export">
-          <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Reports
-        </button>
-        <button class="footer-btn" id="settings-btn" onclick="openSettingsModal()" title="Settings" style="display:none;">
-          <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Settings
-        </button>
-        <button class="footer-btn" onclick="logout()" title="Logout" style="max-width:44px; flex:none;">
-          <svg class="icon-svg" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        </button>
-      </div>
-    </div>
-  </aside>
-
-  <!-- Main -->
-  <main id="main">
-    <div id="topbar">
-      <span id="topbar-title">Chat</span>
-      <div class="topbar-right">
-        <span id="session-badge">session: —</span>
-      </div>
-    </div>
-
-    <!-- Warning banner for guest role limits -->
-    <div id="guest-banner">
-      <svg class="icon-svg" style="color:var(--danger);" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <span><strong>Guest Mode:</strong> You have read-only access. Schema generation and modifications are disabled.</span>
-    </div>
-
-    <div id="chat-area">
-      <div id="messages">
-        <div id="empty-state">
-          <div class="empty-icon">
-            <svg class="icon-svg large" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
-          </div>
-          <div class="empty-title">Hey, I'm Andavar</div>
-          <div class="empty-desc">Your intelligent SQL database assistant. Ask me anything — query data, view records, design schemas, or just say hi.</div>
-          <div class="suggestions" id="suggestions-wrap">
-            <!-- Suggestions populated based on role -->
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div id="typing">
-      <div class="typing-bubble">
-        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-      </div>
-    </div>
-
-    <div id="input-area">
-      <div id="input-wrap">
-        <textarea id="msg-input" placeholder="Message Andavar… (Shift+Enter for newline)" rows="1"></textarea>
-        <button id="send-btn" onclick="sendMessage()" title="Send">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        </button>
-      </div>
-      <div class="hint">Andavar can make mistakes. Verify critical SQL before executing in production.</div>
-    </div>
-  </main>
-</div>
-
-<!-- Settings Modal (Admin Only) -->
-<div id="settings-modal" class="modal-overlay">
-  <div class="modal-card">
-    <div class="modal-header">
-      <span class="modal-title">⚙️ Administrative Settings</span>
-      <button class="close-modal" onclick="closeSettingsModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-tabs">
-        <button class="tab-btn active" id="tab-projects-btn" onclick="switchSettingsTab('projects')">📁 Projects</button>
-        <button class="tab-btn" id="tab-users-btn" onclick="switchSettingsTab('users')">👥 User Access</button>
-      </div>
-      
-      <!-- Projects Tab -->
-      <div class="modal-content" id="settings-projects-content">
-        <div class="settings-section-title">
-          <span>Manage Projects</span>
-          <button class="btn-small" onclick="showAddProjectForm()">+ New Project</button>
-        </div>
-        
-        <!-- Project list table -->
-        <div class="table-responsive" id="project-list-container">
-          <table class="modal-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Description</th>
-                <th>Model</th>
-                <th>Database Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="projects-table-body">
-              <!-- Populated dynamically -->
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Add/Edit Project Form -->
-        <div id="project-form-container" style="display:none; flex-direction:column; gap:12px; border:1px solid var(--border); padding:16px; border-radius:8px; background:rgba(0,0,0,0.1);">
-          <h3 id="project-form-title" style="font-size:13px; font-weight:600;">Add Project</h3>
-          <input type="hidden" id="proj-id">
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-            <div class="form-group">
-              <label>Project Name *</label>
-              <input type="text" id="proj-name" placeholder="e.g. Sales Production">
-            </div>
-            <div class="form-group">
-              <label>LLM Model</label>
-              <select id="proj-model">
-                <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (fast/cheap)</option>
-                <option value="gemini-2.5-flash">gemini-2.5-flash (balanced)</option>
-                <option value="gemini-2.5-pro">gemini-2.5-pro (highly smart)</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Description</label>
-            <input type="text" id="proj-desc" placeholder="Brief description of the database context">
-          </div>
-          <div class="form-group">
-            <label>Database Connection URL (PostgreSQL) *</label>
-            <input type="password" id="proj-url" placeholder="postgresql://user:pass@host:port/dbname?sslmode=require">
-          </div>
-          <div class="form-group">
-            <label>Gemini API Key *</label>
-            <input type="password" id="proj-apikey" placeholder="AIzaSy...">
-          </div>
-          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
-            <button class="btn-small btn-secondary" onclick="hideProjectForm()">Cancel</button>
-            <button class="btn-small" onclick="saveProject()">Save Project</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Users Tab -->
-      <div class="modal-content" id="settings-users-content" style="display:none;">
-        <div class="settings-section-title">
-          <span>Manage Users & Roles</span>
-          <button class="btn-small" onclick="showAddUserForm()">+ Add User</button>
-        </div>
-
-        <!-- User list table -->
-        <div class="table-responsive" id="user-list-container">
-          <table class="modal-table">
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="users-table-body">
-              <!-- Populated dynamically -->
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Add User Form -->
-        <div id="user-form-container" style="display:none; flex-direction:column; gap:12px; border:1px solid var(--border); padding:16px; border-radius:8px; background:rgba(0,0,0,0.1);">
-          <h3 style="font-size:13px; font-weight:600;">Create User Account</h3>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-            <div class="form-group">
-              <label>Username *</label>
-              <input type="text" id="user-username" placeholder="e.g. johndoe">
-            </div>
-            <div class="form-group">
-              <label>Email *</label>
-              <input type="email" id="user-email" placeholder="john@example.com">
-            </div>
-          </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-            <div class="form-group">
-              <label>Password *</label>
-              <input type="password" id="user-password" placeholder="Minimum 6 characters">
-            </div>
-            <div class="form-group">
-              <label>Access Role *</label>
-              <select id="user-role">
-                <option value="guest">Guest (Read-only viewing)</option>
-                <option value="manager">Manager (Read/Write, reports generation)</option>
-                <option value="admin">Admin (Full administrative control)</option>
-              </select>
-            </div>
-          </div>
-          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
-            <button class="btn-small btn-secondary" onclick="hideUserForm()">Cancel</button>
-            <button class="btn-small" onclick="saveUser()">Create User</button>
-          </div>
-        </div>
+      <div id="auth-form-container" style="display:flex; flex-direction:column; gap:16px;">
+        <!-- Dynamic Form inserted by JS -->
       </div>
     </div>
   </div>
-</div>
 
-<!-- Reports Modal (Admin & Manager to generate; Guest to view history) -->
-<div id="reports-modal" class="modal-overlay">
-  <div class="modal-card" style="width:900px; height:680px;">
-    <div class="modal-header">
-      <span class="modal-title">📊 Schema Reports & Exports</span>
-      <button class="close-modal" onclick="closeReportsModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-tabs">
-        <button class="tab-btn active" id="tab-gen-report-btn" onclick="switchReportsTab('generate')">Generate</button>
-        <button class="tab-btn" id="tab-history-report-btn" onclick="switchReportsTab('history')">History</button>
+  <!-- Main App Container -->
+  <div id="app">
+    <!-- Sidebar -->
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon">
+            <svg class="icon-svg" viewBox="0 0 24 24">
+              <ellipse cx="12" cy="5" rx="9" ry="3" />
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+              <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3" />
+            </svg>
+          </div>
+          <div>
+            <div class="logo-text">Andavar</div>
+            <div class="logo-sub">SQL Assistant</div>
+          </div>
+        </div>
+
+        <!-- Project Selection -->
+        <div class="project-select-wrap">
+          <label class="project-label">Active Project</label>
+          <select id="project-selector" onchange="onProjectChanged()">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <button id="new-chat-btn" onclick="newChat()">
+          <svg class="icon-svg" viewBox="0 0 24 24">
+            <path d="M12 2v20M2 12h20" />
+          </svg> New conversation
+        </button>
       </div>
 
-      <!-- Generate Report Content -->
-      <div class="modal-content" id="reports-generate-content">
-        <div class="report-layout">
-          <div class="report-form">
-            <div class="form-group">
-              <label>Report Type</label>
-              <select id="report-type-select">
-                <option value="schema_summary">Schema Summary (Tables structure & counts)</option>
-                <option value="version_history">Version History (Created versions logs)</option>
-                <option value="full_export">Full Export (Summary + Version history combined)</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Custom Title (Optional)</label>
-              <input type="text" id="report-title-input" placeholder="Leave empty for auto-generated title">
-            </div>
-          </div>
+      <div id="db-status">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Connecting…</span>
+      </div>
 
-          <div style="display:flex; justify-content:flex-end; gap:10px;">
-            <button class="btn-small" id="generate-report-submit-btn" onclick="generateReport()">Generate Report</button>
-          </div>
+      <div class="sidebar-section">Tables</div>
+      <div id="table-list">
+        <div class="no-tables">Loading…</div>
+      </div>
 
-          <div class="report-preview-container">
-            <div class="report-preview-header">
-              <span>Report Preview (Markdown)</span>
-              <button class="btn-small btn-secondary" id="download-report-btn" style="display:none; padding:4px 8px; font-size:11px;" onclick="downloadActiveReport()">Download .md</button>
+      <!-- Sidebar footer user info & options -->
+      <div class="sidebar-footer">
+        <div class="user-profile">
+          <div class="user-avatar" id="user-avatar-lbl">U</div>
+          <div class="user-details">
+            <span class="user-name" id="user-name-lbl">User</span>
+            <span class="user-role" id="user-role-lbl">guest</span>
+          </div>
+        </div>
+        <div class="user-actions">
+
+          <button class="footer-btn" id="reports-btn" onclick="openReportsModal()" title="Reports & Export">
+            <svg class="icon-svg" viewBox="0 0 24 24">
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg> Reports
+          </button>
+          <button class="footer-btn" id="settings-btn" onclick="openSettingsModal()" title="Settings"
+            style="display:none;">
+            <svg class="icon-svg" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg> Settings
+          </button>
+          <button class="footer-btn" onclick="logout()" title="Logout" style="max-width:44px; flex:none;">
+            <svg class="icon-svg" viewBox="0 0 24 24">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main id="main">
+      <div id="topbar">
+        <span id="topbar-title">Chat</span>
+        <div class="topbar-right">
+          <span id="session-badge">session: —</span>
+        </div>
+      </div>
+
+      <!-- Warning banner for guest role limits -->
+      <div id="guest-banner">
+        <svg class="icon-svg" style="color:var(--danger);" viewBox="0 0 24 24">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <span><strong>Guest Mode:</strong> You have read-only access. Schema generation and modifications are
+          disabled.</span>
+      </div>
+
+      <div id="chat-area">
+        <div id="messages">
+          <div id="empty-state">
+            <div class="empty-icon">
+              <svg class="icon-svg large" viewBox="0 0 24 24">
+                <ellipse cx="12" cy="5" rx="9" ry="3" />
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3" />
+              </svg>
             </div>
-            <div class="report-preview-body" id="report-preview-body">No report generated yet. Click generate above.</div>
+            <div class="empty-title">Hey, I'm Andavar</div>
+            <div class="empty-desc">Your intelligent SQL database assistant. Ask me anything — query data, view records,
+              design schemas, or just say hi.</div>
+            <div class="suggestions" id="suggestions-wrap">
+              <!-- Suggestions populated based on role -->
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Reports History Content -->
-      <div class="modal-content" id="reports-history-content" style="display:none;">
-        <div class="settings-section-title">
-          <span>Previous Reports History</span>
+      <div id="typing">
+        <div class="typing-bubble">
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+
+      <div id="input-area">
+        <div id="input-wrap">
+          <textarea id="msg-input" placeholder="Message Andavar… (Shift+Enter for newline)" rows="1"></textarea>
+          <button id="send-btn" onclick="sendMessage()" title="Send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        </div>
+        <div class="hint">Andavar can make mistakes. Verify critical SQL before executing in production.</div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Settings Modal (Admin Only) -->
+  <div id="settings-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span class="modal-title">⚙️ Administrative Settings</span>
+        <button class="close-modal" onclick="closeSettingsModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-tabs">
+          <button class="tab-btn active" id="tab-projects-btn" onclick="switchSettingsTab('projects')">📁
+            Projects</button>
+          <button class="tab-btn" id="tab-users-btn" onclick="switchSettingsTab('users')">👥 User Access</button>
         </div>
 
-        <div class="table-responsive">
-          <table class="modal-table">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Generated At</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="reports-history-table-body">
-              <!-- Populated dynamically -->
-            </tbody>
-          </table>
+        <!-- Projects Tab -->
+        <div class="modal-content" id="settings-projects-content">
+          <div class="settings-section-title">
+            <span>Manage Projects</span>
+            <button class="btn-small" onclick="showAddProjectForm()">+ New Project</button>
+          </div>
+
+          <!-- Project list table -->
+          <div class="table-responsive" id="project-list-container">
+            <table class="modal-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th>Model</th>
+                  <th>Database Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="projects-table-body">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Add/Edit Project Form -->
+          <div id="project-form-container"
+            style="display:none; flex-direction:column; gap:12px; border:1px solid var(--border); padding:16px; border-radius:8px; background:rgba(0,0,0,0.1);">
+            <h3 id="project-form-title" style="font-size:13px; font-weight:600;">Add Project</h3>
+            <input type="hidden" id="proj-id">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+              <div class="form-group">
+                <label>Project Name *</label>
+                <input type="text" id="proj-name" placeholder="e.g. Sales Production">
+              </div>
+              <div class="form-group">
+                <label>LLM Model</label>
+                <select id="proj-model">
+                  <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (fast/cheap)</option>
+                  <option value="gemini-2.5-flash">gemini-2.5-flash (balanced)</option>
+                  <option value="gemini-2.5-pro">gemini-2.5-pro (highly smart)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <input type="text" id="proj-desc" placeholder="Brief description of the database context">
+            </div>
+            <div class="form-group">
+              <label>Database Connection URL (PostgreSQL) *</label>
+              <input type="password" id="proj-url"
+                placeholder="postgresql://user:pass@host:port/dbname?sslmode=require">
+            </div>
+            <div class="form-group">
+              <label>Gemini API Key *</label>
+              <input type="password" id="proj-apikey" placeholder="AIzaSy...">
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+              <button class="btn-small btn-secondary" onclick="hideProjectForm()">Cancel</button>
+              <button class="btn-small" onclick="saveProject()">Save Project</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div class="modal-content" id="settings-users-content" style="display:none;">
+          <div class="settings-section-title">
+            <span>Manage Users & Roles</span>
+            <button class="btn-small" onclick="showAddUserForm()">+ Add User</button>
+          </div>
+
+          <!-- User list table -->
+          <div class="table-responsive" id="user-list-container">
+            <table class="modal-table">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="users-table-body">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Add User Form -->
+          <div id="user-form-container"
+            style="display:none; flex-direction:column; gap:12px; border:1px solid var(--border); padding:16px; border-radius:8px; background:rgba(0,0,0,0.1);">
+            <h3 style="font-size:13px; font-weight:600;">Create User Account</h3>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+              <div class="form-group">
+                <label>Username *</label>
+                <input type="text" id="user-username" placeholder="e.g. johndoe">
+              </div>
+              <div class="form-group">
+                <label>Email *</label>
+                <input type="email" id="user-email" placeholder="john@example.com">
+              </div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+              <div class="form-group">
+                <label>Password *</label>
+                <input type="password" id="user-password" placeholder="Minimum 6 characters">
+              </div>
+              <div class="form-group">
+                <label>Access Role *</label>
+                <select id="user-role">
+                  <option value="guest">Guest (Read-only viewing)</option>
+                  <option value="manager">Manager (Read/Write, reports generation)</option>
+                  <option value="admin">Admin (Full administrative control)</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+              <button class="btn-small btn-secondary" onclick="hideUserForm()">Cancel</button>
+              <button class="btn-small" onclick="saveUser()">Create User</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<script>
-const BASE = '';
-let sessionId = localStorage.getItem('av_session') || crypto.randomUUID();
-localStorage.setItem('av_session', sessionId);
-let busy = false;
-let projects = [];
-let activeProjectId = '';
-let activeReportContent = '';
-let activeReportTitle = '';
+  <!-- Reports Modal (Admin & Manager to generate; Guest to view history) -->
+  <div id="reports-modal" class="modal-overlay">
+    <div class="modal-card" style="width:900px; height:680px;">
+      <div class="modal-header">
+        <span class="modal-title">📊 Schema Reports & Exports</span>
+        <button class="close-modal" onclick="closeReportsModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-tabs">
+          <button class="tab-btn active" id="tab-gen-report-btn"
+            onclick="switchReportsTab('generate')">Generate</button>
+          <button class="tab-btn" id="tab-history-report-btn" onclick="switchReportsTab('history')">History</button>
+        </div>
 
-// ── Initial Boot ─────────────────────────────────────────────────────────────
-document.getElementById('session-badge').textContent = 'session: ' + sessionId.slice(0, 8) + '…';
+        <!-- Generate Report Content -->
+        <div class="modal-content" id="reports-generate-content">
+          <div class="report-layout">
+            <div class="report-form">
+              <div class="form-group">
+                <label>Report Type</label>
+                <select id="report-type-select">
+                  <option value="schema_summary">Schema Summary (Tables structure & counts)</option>
+                  <option value="version_history">Version History (Created versions logs)</option>
+                  <option value="full_export">Full Export (Summary + Version history combined)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Custom Title (Optional)</label>
+                <input type="text" id="report-title-input" placeholder="Leave empty for auto-generated title">
+              </div>
+            </div>
 
-// Setup highlight and marked
-marked.setOptions({
-  highlight: (code, lang) => {
-    if (lang && hljs.getLanguage(lang)) {
-      try { return hljs.highlight(code, {language: lang}).value; } catch {}
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+              <button class="btn-small" id="generate-report-submit-btn" onclick="generateReport()">Generate
+                Report</button>
+            </div>
+
+            <div class="report-preview-container">
+              <div class="report-preview-header">
+                <span>Report Preview</span>
+                <button class="btn-small btn-secondary" id="download-report-btn"
+                  style="display:none; padding:4px 8px; font-size:11px;" onclick="downloadActiveReport()">Download
+                  .md</button>
+              </div>
+              <div class="report-preview-body" id="report-preview-body">No report generated yet. Click generate above.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reports History Content -->
+        <div class="modal-content" id="reports-history-content" style="display:none;">
+          <div class="settings-section-title">
+            <span>Previous Reports History</span>
+          </div>
+
+          <div class="table-responsive">
+            <table class="modal-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Type</th>
+                  <th>Generated At</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="reports-history-table-body">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BASE = '';
+    let sessionId = localStorage.getItem('av_session') || crypto.randomUUID();
+    localStorage.setItem('av_session', sessionId);
+    let busy = false;
+    let projects = [];
+    let activeProjectId = '';
+    let activeReportContent = '';
+    let activeReportTitle = '';
+
+    // ── Initial Boot ─────────────────────────────────────────────────────────────
+    document.getElementById('session-badge').textContent = 'session: ' + sessionId.slice(0, 8) + '…';
+
+    // Setup highlight and marked
+    marked.setOptions({
+      highlight: (code, lang) => {
+        if (lang && hljs.getLanguage(lang)) {
+          try { return hljs.highlight(code, { language: lang }).value; } catch { }
+        }
+        return hljs.highlightAuto(code).value;
+      },
+      breaks: true, gfm: true
+    });
+
+    checkAuthAndSetup();
+
+    // ── Toast Helper ─────────────────────────────────────────────────────────────
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `visible ${type}`;
+      setTimeout(() => {
+        toast.className = '';
+      }, 4000);
     }
-    return hljs.highlightAuto(code).value;
-  },
-  breaks: true, gfm: true
-});
 
-checkAuthAndSetup();
+    // ── Auth Handling ─────────────────────────────────────────────────────────────
+    async function checkAuthAndSetup() {
+      try {
+        const r = await fetch(BASE + '/api/auth/needs-setup');
+        const d = await r.json();
+        if (d.needs_setup) {
+          showSetupWizard();
+          return;
+        }
 
-// ── Toast Helper ─────────────────────────────────────────────────────────────
-function showToast(message, type = 'success') {
-  const toast = document.getElementById('toast');
-  toast.textContent = message;
-  toast.className = `visible ${type}`;
-  setTimeout(() => {
-    toast.className = '';
-  }, 4000);
-}
+        // Check if token exists
+        const token = localStorage.getItem('av_token');
+        if (!token) {
+          showLoginScreen();
+          return;
+        }
 
-// ── Auth Handling ─────────────────────────────────────────────────────────────
-async function checkAuthAndSetup() {
-  try {
-    const r = await fetch(BASE + '/api/auth/needs-setup');
-    const d = await r.json();
-    if (d.needs_setup) {
-      showSetupWizard();
-      return;
-    }
-    
-    // Check if token exists
-    const token = localStorage.getItem('av_token');
-    if (!token) {
-      showLoginScreen();
-      return;
-    }
+        // Attempt to load user profile
+        const userRes = await fetchWithAuth(BASE + '/api/auth/me');
+        if (!userRes.ok) {
+          logout();
+          return;
+        }
 
-    // Attempt to load user profile
-    const userRes = await fetchWithAuth(BASE + '/api/auth/me');
-    if (!userRes.ok) {
-      logout();
-      return;
+        const userData = await userRes.json();
+        localStorage.setItem('av_user', JSON.stringify(userData));
+        initMainApp(userData);
+      } catch (e) {
+        showToast('Failed to connect to Andavar server: ' + e.message, 'error');
+      }
     }
 
-    const userData = await userRes.json();
-    localStorage.setItem('av_user', JSON.stringify(userData));
-    initMainApp(userData);
-  } catch (e) {
-    showToast('Failed to connect to Andavar server: ' + e.message, 'error');
-  }
-}
+    function showSetupWizard() {
+      document.getElementById('auth-screen').style.opacity = '1';
+      document.getElementById('auth-screen').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
 
-function showSetupWizard() {
-  document.getElementById('auth-screen').style.opacity = '1';
-  document.getElementById('auth-screen').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
-  
-  document.getElementById('auth-title').textContent = 'Welcome to Andavar';
-  document.getElementById('auth-desc').textContent = 'Create the initial Admin account to begin setup.';
-  
-  const form = document.getElementById('auth-form-container');
-  form.innerHTML = `
+      document.getElementById('auth-title').textContent = 'Welcome to Andavar';
+      document.getElementById('auth-desc').textContent = 'Create the initial Admin account to begin setup.';
+
+      const form = document.getElementById('auth-form-container');
+      form.innerHTML = `
     <form id="setup-form" onsubmit="submitSetup(event)" style="display:flex; flex-direction:column; gap:14px;">
       <div class="form-group">
         <label>Admin Username *</label>
@@ -726,18 +1876,18 @@ function showSetupWizard() {
       <button type="submit" class="auth-btn">Initialize System</button>
     </form>
   `;
-}
+    }
 
-function showLoginScreen() {
-  document.getElementById('auth-screen').style.opacity = '1';
-  document.getElementById('auth-screen').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
-  
-  document.getElementById('auth-title').textContent = 'Andavar';
-  document.getElementById('auth-desc').textContent = 'Sign in to access your schema assistant.';
-  
-  const form = document.getElementById('auth-form-container');
-  form.innerHTML = `
+    function showLoginScreen() {
+      document.getElementById('auth-screen').style.opacity = '1';
+      document.getElementById('auth-screen').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+
+      document.getElementById('auth-title').textContent = 'Andavar';
+      document.getElementById('auth-desc').textContent = 'Sign in to access your schema assistant.';
+
+      const form = document.getElementById('auth-form-container');
+      form.innerHTML = `
     <form id="login-form" onsubmit="submitLogin(event)" style="display:flex; flex-direction:column; gap:14px;">
       <div class="form-group">
         <label>Email Address *</label>
@@ -750,124 +1900,124 @@ function showLoginScreen() {
       <button type="submit" class="auth-btn">Sign In</button>
     </form>
   `;
-}
-
-async function submitSetup(e) {
-  e.preventDefault();
-  const username = document.getElementById('setup-username').value.trim();
-  const email = document.getElementById('setup-email').value.trim();
-  const password = document.getElementById('setup-password').value;
-  
-  try {
-    const res = await fetch(BASE + '/api/auth/setup', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username, email, password})
-    });
-    
-    const d = await res.json();
-    if (res.ok) {
-      localStorage.setItem('av_token', d.access_token);
-      localStorage.setItem('av_user', JSON.stringify(d.user));
-      showToast('Admin account initialized successfully!');
-      initMainApp(d.user);
-    } else {
-      showToast(d.detail || 'Initialization failed', 'error');
     }
-  } catch (e) {
-    showToast('Setup error: ' + e.message, 'error');
-  }
-}
 
-async function submitLogin(e) {
-  e.preventDefault();
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  
-  try {
-    const res = await fetch(BASE + '/api/auth/login', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({email, password})
-    });
-    
-    const d = await res.json();
-    if (res.ok) {
-      localStorage.setItem('av_token', d.access_token);
-      localStorage.setItem('av_user', JSON.stringify(d.user));
-      showToast('Welcome back, ' + d.user.username + '!');
-      initMainApp(d.user);
-    } else {
-      showToast(d.detail || 'Authentication failed', 'error');
+    async function submitSetup(e) {
+      e.preventDefault();
+      const username = document.getElementById('setup-username').value.trim();
+      const email = document.getElementById('setup-email').value.trim();
+      const password = document.getElementById('setup-password').value;
+
+      try {
+        const res = await fetch(BASE + '/api/auth/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email, password })
+        });
+
+        const d = await res.json();
+        if (res.ok) {
+          localStorage.setItem('av_token', d.access_token);
+          localStorage.setItem('av_user', JSON.stringify(d.user));
+          showToast('Admin account initialized successfully!');
+          initMainApp(d.user);
+        } else {
+          showToast(d.detail || 'Initialization failed', 'error');
+        }
+      } catch (e) {
+        showToast('Setup error: ' + e.message, 'error');
+      }
     }
-  } catch (e) {
-    showToast('Login error: ' + e.message, 'error');
-  }
-}
 
-function logout() {
-  localStorage.removeItem('av_token');
-  localStorage.removeItem('av_user');
-  location.reload();
-}
+    async function submitLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
 
-// ── Auth Fetch Wrapper ────────────────────────────────────────────────────────
-async function fetchWithAuth(url, options = {}) {
-  const token = localStorage.getItem('av_token');
-  options.headers = options.headers || {};
-  if (token) {
-    options.headers['Authorization'] = `Bearer ${token}`;
-  }
-  
-  const res = await fetch(url, options);
-  if (res.status === 401) {
-    // Session expired or invalid
-    logout();
-    throw new Error('Session expired. Please log in again.');
-  }
-  return res;
-}
+      try {
+        const res = await fetch(BASE + '/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
 
-// ── Main App Initialization ───────────────────────────────────────────────────
-async function initMainApp(user) {
-  document.getElementById('auth-screen').style.opacity = '0';
-  setTimeout(() => {
-    document.getElementById('auth-screen').style.display = 'none';
-  }, 300);
-  
-  document.getElementById('app').style.display = 'flex';
-  
-  // Set User Profile Labels
-  document.getElementById('user-name-lbl').textContent = user.username;
-  document.getElementById('user-avatar-lbl').textContent = user.username.slice(0, 1).toUpperCase();
-  document.getElementById('user-role-lbl').textContent = user.role;
+        const d = await res.json();
+        if (res.ok) {
+          localStorage.setItem('av_token', d.access_token);
+          localStorage.setItem('av_user', JSON.stringify(d.user));
+          showToast('Welcome back, ' + d.user.username + '!');
+          initMainApp(d.user);
+        } else {
+          showToast(d.detail || 'Authentication failed', 'error');
+        }
+      } catch (e) {
+        showToast('Login error: ' + e.message, 'error');
+      }
+    }
 
-  // Role Based UI restrictions
-  const settingsBtn = document.getElementById('settings-btn');
-  const reportsBtn = document.getElementById('reports-btn');
-  const guestBanner = document.getElementById('guest-banner');
-  const suggestionsWrap = document.getElementById('suggestions-wrap');
+    function logout() {
+      localStorage.removeItem('av_token');
+      localStorage.removeItem('av_user');
+      location.reload();
+    }
 
-  if (user.role === 'admin') {
-    settingsBtn.style.display = 'flex';
-    reportsBtn.style.display = 'flex';
-    guestBanner.style.display = 'none';
-  } else if (user.role === 'manager') {
-    settingsBtn.style.display = 'none';
-    reportsBtn.style.display = 'flex';
-    guestBanner.style.display = 'none';
-  } else {
-    // Guest
-    settingsBtn.style.display = 'none';
-    reportsBtn.style.display = 'flex'; // Guests can view history
-    guestBanner.style.display = 'flex';
-    document.getElementById('tab-gen-report-btn').style.display = 'none'; // Only view history
-    switchReportsTab('history');
-  }
+    // ── Auth Fetch Wrapper ────────────────────────────────────────────────────────
+    async function fetchWithAuth(url, options = {}) {
+      const token = localStorage.getItem('av_token');
+      options.headers = options.headers || {};
+      if (token) {
+        options.headers['Authorization'] = `Bearer ${token}`;
+      }
 
-  // Populate Suggestions Based on Role
-  if (user.role === 'guest') {
-    suggestionsWrap.innerHTML = `
+      const res = await fetch(url, options);
+      if (res.status === 401) {
+        // Session expired or invalid
+        logout();
+        throw new Error('Session expired. Please log in again.');
+      }
+      return res;
+    }
+
+    // ── Main App Initialization ───────────────────────────────────────────────────
+    async function initMainApp(user) {
+      document.getElementById('auth-screen').style.opacity = '0';
+      setTimeout(() => {
+        document.getElementById('auth-screen').style.display = 'none';
+      }, 300);
+
+      document.getElementById('app').style.display = 'flex';
+
+      // Set User Profile Labels
+      document.getElementById('user-name-lbl').textContent = user.username;
+      document.getElementById('user-avatar-lbl').textContent = user.username.slice(0, 1).toUpperCase();
+      document.getElementById('user-role-lbl').textContent = user.role;
+
+      // Role Based UI restrictions
+      const settingsBtn = document.getElementById('settings-btn');
+      const reportsBtn = document.getElementById('reports-btn');
+      const guestBanner = document.getElementById('guest-banner');
+      const suggestionsWrap = document.getElementById('suggestions-wrap');
+
+      if (user.role === 'admin') {
+        settingsBtn.style.display = 'flex';
+        reportsBtn.style.display = 'flex';
+        guestBanner.style.display = 'none';
+      } else if (user.role === 'manager') {
+        settingsBtn.style.display = 'none';
+        reportsBtn.style.display = 'flex';
+        guestBanner.style.display = 'none';
+      } else {
+        // Guest
+        settingsBtn.style.display = 'none';
+        reportsBtn.style.display = 'flex'; // Guests can view history
+        guestBanner.style.display = 'flex';
+        document.getElementById('tab-gen-report-btn').style.display = 'none'; // Only view history
+        switchReportsTab('history');
+      }
+
+      // Populate Suggestions Based on Role
+      if (user.role === 'guest') {
+        suggestionsWrap.innerHTML = `
       <button class="suggestion-chip" onclick="sendSuggestion(this.dataset.msg)" data-msg="What tables do I have in my database?">
         <strong>📋 List tables</strong>What's in my database?
       </button>
@@ -875,8 +2025,8 @@ async function initMainApp(user) {
         <strong>🔍 Preview data</strong>Show me some rows
       </button>
     `;
-  } else {
-    suggestionsWrap.innerHTML = `
+      } else {
+        suggestionsWrap.innerHTML = `
       <button class="suggestion-chip" onclick="sendSuggestion(this.dataset.msg)" data-msg="What tables do I have in my database?">
         <strong>📋 List tables</strong>What's in my database?
       </button>
@@ -890,222 +2040,222 @@ async function initMainApp(user) {
         <strong>💬 Get help</strong>What can you do?
       </button>
     `;
-  }
+      }
 
-  // Load Projects and status
-  await loadProjects();
-  loadDbStatus();
-  loadTables();
-}
+      // Load Projects and status
+      await loadProjects();
+      loadDbStatus();
+      loadTables();
+    }
 
-// ── Project Management ────────────────────────────────────────────────────────
-async function loadProjects() {
-  try {
-    const res = await fetchWithAuth(BASE + '/api/projects');
-    if (res.ok) {
-      projects = await res.json();
+    // ── Project Management ────────────────────────────────────────────────────────
+    async function loadProjects() {
+      try {
+        const res = await fetchWithAuth(BASE + '/api/projects');
+        if (res.ok) {
+          projects = await res.json();
+          const selector = document.getElementById('project-selector');
+
+          if (projects.length === 0) {
+            selector.innerHTML = '<option value="">No projects available</option>';
+            activeProjectId = '';
+            return;
+          }
+
+          selector.innerHTML = projects.map(p =>
+            `<option value="${p.id}">${p.name}</option>`
+          ).join('');
+
+          // Default to first project
+          if (!activeProjectId || !projects.some(p => p.id === activeProjectId)) {
+            activeProjectId = projects[0].id;
+          }
+          selector.value = activeProjectId;
+        }
+      } catch (e) {
+        showToast('Failed to load projects: ' + e.message, 'error');
+      }
+    }
+
+    async function onProjectChanged() {
       const selector = document.getElementById('project-selector');
-      
-      if (projects.length === 0) {
-        selector.innerHTML = '<option value="">No projects available</option>';
-        activeProjectId = '';
+      activeProjectId = selector.value;
+      loadDbStatus();
+      loadTables();
+      newChat();
+    }
+
+    async function loadDbStatus() {
+      if (!activeProjectId) {
+        const dot = document.getElementById('status-dot');
+        const txt = document.getElementById('status-text');
+        dot.className = 'status-dot error';
+        txt.textContent = 'Create a project first';
         return;
       }
-      
-      selector.innerHTML = projects.map(p => 
-        `<option value="${p.id}">${p.name}</option>`
-      ).join('');
-      
-      // Default to first project
-      if (!activeProjectId || !projects.some(p => p.id === activeProjectId)) {
-        activeProjectId = projects[0].id;
+
+      try {
+        const r = await fetchWithAuth(BASE + '/api/db/status?project_id=' + activeProjectId);
+        const d = await r.json();
+        const dot = document.getElementById('status-dot');
+        const txt = document.getElementById('status-text');
+        if (d.connected) {
+          dot.className = 'status-dot connected';
+          txt.textContent = d.table_count + ' table' + (d.table_count !== 1 ? 's' : '') + ' connected';
+        } else {
+          dot.className = 'status-dot error';
+          txt.textContent = 'DB not connected';
+        }
+      } catch { }
+    }
+
+    async function loadTables() {
+      if (!activeProjectId) {
+        document.getElementById('table-list').innerHTML = '<div class="no-tables">No active project</div>';
+        return;
       }
-      selector.value = activeProjectId;
-    }
-  } catch (e) {
-    showToast('Failed to load projects: ' + e.message, 'error');
-  }
-}
 
-async function onProjectChanged() {
-  const selector = document.getElementById('project-selector');
-  activeProjectId = selector.value;
-  loadDbStatus();
-  loadTables();
-  newChat();
-}
-
-async function loadDbStatus() {
-  if (!activeProjectId) {
-    const dot = document.getElementById('status-dot');
-    const txt = document.getElementById('status-text');
-    dot.className = 'status-dot error';
-    txt.textContent = 'Create a project first';
-    return;
-  }
-  
-  try {
-    const r = await fetchWithAuth(BASE + '/api/db/status?project_id=' + activeProjectId);
-    const d = await r.json();
-    const dot = document.getElementById('status-dot');
-    const txt = document.getElementById('status-text');
-    if (d.connected) {
-      dot.className = 'status-dot connected';
-      txt.textContent = d.table_count + ' table' + (d.table_count !== 1 ? 's' : '') + ' connected';
-    } else {
-      dot.className = 'status-dot error';
-      txt.textContent = 'DB not connected';
-    }
-  } catch { }
-}
-
-async function loadTables() {
-  if (!activeProjectId) {
-    document.getElementById('table-list').innerHTML = '<div class="no-tables">No active project</div>';
-    return;
-  }
-  
-  try {
-    const r = await fetchWithAuth(BASE + '/api/db/tables?project_id=' + activeProjectId);
-    const d = await r.json();
-    const el = document.getElementById('table-list');
-    if (!d.tables || d.tables.length === 0) {
-      el.innerHTML = '<div class="no-tables">No tables found</div>';
-      return;
-    }
-    el.innerHTML = d.tables.map(t =>
-      `<div class="table-item" onclick="sendSuggestion('Describe the ${t} table')">
+      try {
+        const r = await fetchWithAuth(BASE + '/api/db/tables?project_id=' + activeProjectId);
+        const d = await r.json();
+        const el = document.getElementById('table-list');
+        if (!d.tables || d.tables.length === 0) {
+          el.innerHTML = '<div class="no-tables">No tables found</div>';
+          return;
+        }
+        el.innerHTML = d.tables.map(t =>
+          `<div class="table-item" onclick="sendSuggestion('Describe the ${t} table')">
         <span class="table-icon">▤</span>${t}
       </div>`
-    ).join('');
-  } catch {
-    document.getElementById('table-list').innerHTML = '<div class="no-tables">Could not load</div>';
-  }
-}
-
-// ── Conversational Flow ───────────────────────────────────────────────────────
-async function sendMessage() {
-  if (busy) return;
-  
-  // Guard for guest
-  const user = JSON.parse(localStorage.getItem('av_user') || '{}');
-  const input = document.getElementById('msg-input');
-  const text = input.value.trim();
-  if (!text) return;
-
-  // Let assistant handle conversational blocks for guest in API side, but show indicator
-  input.value = '';
-  input.style.height = 'auto';
-  busy = true;
-  document.getElementById('send-btn').disabled = true;
-
-  addMessage('user', text);
-  setTyping(true);
-
-  try {
-    const res = await fetchWithAuth(BASE + '/api/chat', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        message: text, 
-        session_id: sessionId,
-        project_id: activeProjectId
-      })
-    });
-    const data = await res.json();
-    setTyping(false);
-    if (res.ok) {
-      addMessage('assistant', data.reply || '_(empty response)_');
-      loadTables();
-      loadDbStatus();
-    } else {
-      addMessage('assistant', `⚠️ **Error:** ${data.detail || 'Something went wrong.'}`);
+        ).join('');
+      } catch {
+        document.getElementById('table-list').innerHTML = '<div class="no-tables">Could not load</div>';
+      }
     }
-  } catch (e) {
-    setTyping(false);
-    addMessage('assistant', `⚠️ **Error:** ${e.message}`);
-  }
 
-  busy = false;
-  document.getElementById('send-btn').disabled = false;
-  input.focus();
-}
+    // ── Conversational Flow ───────────────────────────────────────────────────────
+    async function sendMessage() {
+      if (busy) return;
 
-function addMessage(role, content) {
-  const empty = document.getElementById('empty-state');
-  if (empty) empty.remove();
+      // Guard for guest
+      const user = JSON.parse(localStorage.getItem('av_user') || '{}');
+      const input = document.getElementById('msg-input');
+      const text = input.value.trim();
+      if (!text) return;
 
-  const container = document.getElementById('messages');
-  const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-  const div = document.createElement('div');
-  div.className = `message ${role}`;
+      // Let assistant handle conversational blocks for guest in API side, but show indicator
+      input.value = '';
+      input.style.height = 'auto';
+      busy = true;
+      document.getElementById('send-btn').disabled = true;
 
-  if (role === 'user') {
-    div.innerHTML = `
+      addMessage('user', text);
+      setTyping(true);
+
+      try {
+        const res = await fetchWithAuth(BASE + '/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            session_id: sessionId,
+            project_id: activeProjectId
+          })
+        });
+        const data = await res.json();
+        setTyping(false);
+        if (res.ok) {
+          addMessage('assistant', data.reply || '_(empty response)_');
+          loadTables();
+          loadDbStatus();
+        } else {
+          addMessage('assistant', `⚠️ **Error:** ${data.detail || 'Something went wrong.'}`);
+        }
+      } catch (e) {
+        setTyping(false);
+        addMessage('assistant', `⚠️ **Error:** ${e.message}`);
+      }
+
+      busy = false;
+      document.getElementById('send-btn').disabled = false;
+      input.focus();
+    }
+
+    function addMessage(role, content) {
+      const empty = document.getElementById('empty-state');
+      if (empty) empty.remove();
+
+      const container = document.getElementById('messages');
+      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const div = document.createElement('div');
+      div.className = `message ${role}`;
+
+      if (role === 'user') {
+        div.innerHTML = `
       <div class="msg-meta">${now}</div>
       <div class="msg-bubble">${escHtml(content)}</div>`;
-  } else {
-    const html = renderMarkdown(content);
-    div.innerHTML = `
+      } else {
+        const html = renderMarkdown(content);
+        div.innerHTML = `
       <div class="msg-meta">Andavar · ${now}</div>
       <div class="msg-bubble">${html}</div>`;
-  }
+      }
 
-  container.appendChild(div);
+      container.appendChild(div);
 
-  // Add copy buttons to code blocks
-  div.querySelectorAll('pre').forEach(pre => {
-    const btn = document.createElement('button');
-    btn.className = 'copy-btn';
-    btn.textContent = 'Copy';
-    pre.style.position = 'relative';
-    pre.appendChild(btn);
-    btn.onclick = () => {
-      navigator.clipboard.writeText(pre.querySelector('code')?.textContent || '');
-      btn.textContent = 'Copied!';
-      btn.classList.add('copied');
-      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
-    };
-  });
+      // Add copy buttons to code blocks
+      div.querySelectorAll('pre').forEach(pre => {
+        const btn = document.createElement('button');
+        btn.className = 'copy-btn';
+        btn.textContent = 'Copy';
+        pre.style.position = 'relative';
+        pre.appendChild(btn);
+        btn.onclick = () => {
+          navigator.clipboard.writeText(pre.querySelector('code')?.textContent || '');
+          btn.textContent = 'Copied!';
+          btn.classList.add('copied');
+          setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+        };
+      });
 
-  scrollBottom();
-}
+      scrollBottom();
+    }
 
-function renderMarkdown(text) {
-  try {
-    return marked.parse(text);
-  } catch {
-    return escHtml(text).replace(/\n/g, '<br>');
-  }
-}
+    function renderMarkdown(text) {
+      try {
+        return marked.parse(text);
+      } catch {
+        return escHtml(text).replace(/\n/g, '<br>');
+      }
+    }
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+    function escHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
 
-function scrollBottom() {
-  const a = document.getElementById('chat-area');
-  setTimeout(() => a.scrollTo({top:a.scrollHeight,behavior:'smooth'}), 50);
-}
+    function scrollBottom() {
+      const a = document.getElementById('chat-area');
+      setTimeout(() => a.scrollTo({ top: a.scrollHeight, behavior: 'smooth' }), 50);
+    }
 
-function setTyping(on) {
-  document.getElementById('typing').className = on ? 'visible' : '';
-  if (on) scrollBottom();
-}
+    function setTyping(on) {
+      document.getElementById('typing').className = on ? 'visible' : '';
+      if (on) scrollBottom();
+    }
 
-function sendSuggestion(msg) {
-  document.getElementById('msg-input').value = msg;
-  sendMessage();
-}
+    function sendSuggestion(msg) {
+      document.getElementById('msg-input').value = msg;
+      sendMessage();
+    }
 
-function newChat() {
-  sessionId = crypto.randomUUID();
-  localStorage.setItem('av_session', sessionId);
-  document.getElementById('session-badge').textContent = 'session: ' + sessionId.slice(0,8) + '…';
-  
-  const user = JSON.parse(localStorage.getItem('av_user') || '{}');
-  const mainMessages = document.getElementById('messages');
-  mainMessages.innerHTML = `
+    function newChat() {
+      sessionId = crypto.randomUUID();
+      localStorage.setItem('av_session', sessionId);
+      document.getElementById('session-badge').textContent = 'session: ' + sessionId.slice(0, 8) + '…';
+
+      const user = JSON.parse(localStorage.getItem('av_user') || '{}');
+      const mainMessages = document.getElementById('messages');
+      mainMessages.innerHTML = `
     <div id="empty-state">
       <div class="empty-icon">🗄️</div>
       <div class="empty-title">Hey, I'm Andavar</div>
@@ -1113,9 +2263,9 @@ function newChat() {
       <div class="suggestions" id="suggestions-wrap"></div>
     </div>`;
 
-  const suggestionsWrap = document.getElementById('suggestions-wrap');
-  if (user.role === 'guest') {
-    suggestionsWrap.innerHTML = `
+      const suggestionsWrap = document.getElementById('suggestions-wrap');
+      if (user.role === 'guest') {
+        suggestionsWrap.innerHTML = `
       <button class="suggestion-chip" onclick="sendSuggestion(this.dataset.msg)" data-msg="What tables do I have in my database?">
         <strong>📋 List tables</strong>What's in my database?
       </button>
@@ -1123,8 +2273,8 @@ function newChat() {
         <strong>🔍 Preview data</strong>Show me some rows
       </button>
     `;
-  } else {
-    suggestionsWrap.innerHTML = `
+      } else {
+        suggestionsWrap.innerHTML = `
       <button class="suggestion-chip" onclick="sendSuggestion(this.dataset.msg)" data-msg="What tables do I have in my database?">
         <strong>📋 List tables</strong>What's in my database?
       </button>
@@ -1138,50 +2288,50 @@ function newChat() {
         <strong>💬 Get help</strong>What can you do?
       </button>
     `;
-  }
-}
+      }
+    }
 
-// ── Modals & Overlay Handling ──────────────────────────────────────────────────
-function openSettingsModal() {
-  document.getElementById('settings-modal').classList.add('visible');
-  loadSettingsProjects();
-}
+    // ── Modals & Overlay Handling ──────────────────────────────────────────────────
+    function openSettingsModal() {
+      document.getElementById('settings-modal').classList.add('visible');
+      loadSettingsProjects();
+    }
 
-function closeSettingsModal() {
-  document.getElementById('settings-modal').classList.remove('visible');
-  hideProjectForm();
-  hideUserForm();
-}
+    function closeSettingsModal() {
+      document.getElementById('settings-modal').classList.remove('visible');
+      hideProjectForm();
+      hideUserForm();
+    }
 
-function openReportsModal() {
-  document.getElementById('reports-modal').classList.add('visible');
-  loadReportsHistory();
-}
+    function openReportsModal() {
+      document.getElementById('reports-modal').classList.add('visible');
+      loadReportsHistory();
+    }
 
-function closeReportsModal() {
-  document.getElementById('reports-modal').classList.remove('visible');
-}
+    function closeReportsModal() {
+      document.getElementById('reports-modal').classList.remove('visible');
+    }
 
-// ── Administrative Settings Logic ──────────────────────────────────────────────
-function switchSettingsTab(tab) {
-  document.getElementById('tab-projects-btn').classList.toggle('active', tab === 'projects');
-  document.getElementById('tab-users-btn').classList.toggle('active', tab === 'users');
-  
-  document.getElementById('settings-projects-content').style.display = tab === 'projects' ? 'flex' : 'none';
-  document.getElementById('settings-users-content').style.display = tab === 'users' ? 'flex' : 'none';
-  
-  if (tab === 'projects') loadSettingsProjects();
-  if (tab === 'users') loadSettingsUsers();
-}
+    // ── Administrative Settings Logic ──────────────────────────────────────────────
+    function switchSettingsTab(tab) {
+      document.getElementById('tab-projects-btn').classList.toggle('active', tab === 'projects');
+      document.getElementById('tab-users-btn').classList.toggle('active', tab === 'users');
 
-// ── Settings -> Projects Tab ──
-async function loadSettingsProjects() {
-  try {
-    const res = await fetchWithAuth(BASE + '/api/projects');
-    if (res.ok) {
-      const data = await res.json();
-      const tbody = document.getElementById('projects-table-body');
-      tbody.innerHTML = data.map(p => `
+      document.getElementById('settings-projects-content').style.display = tab === 'projects' ? 'flex' : 'none';
+      document.getElementById('settings-users-content').style.display = tab === 'users' ? 'flex' : 'none';
+
+      if (tab === 'projects') loadSettingsProjects();
+      if (tab === 'users') loadSettingsUsers();
+    }
+
+    // ── Settings -> Projects Tab ──
+    async function loadSettingsProjects() {
+      try {
+        const res = await fetchWithAuth(BASE + '/api/projects');
+        if (res.ok) {
+          const data = await res.json();
+          const tbody = document.getElementById('projects-table-body');
+          tbody.innerHTML = data.map(p => `
         <tr>
           <td style="font-weight: 600;">${escHtml(p.name)}</td>
           <td style="color: var(--muted);">${escHtml(p.description || '—')}</td>
@@ -1197,162 +2347,162 @@ async function loadSettingsProjects() {
           </td>
         </tr>
       `).join('');
+        }
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
     }
-  } catch (e) {
-    showToast(e.message, 'error');
-  }
-}
 
-function showAddProjectForm() {
-  document.getElementById('project-form-title').textContent = 'Add New Project';
-  document.getElementById('proj-id').value = '';
-  document.getElementById('proj-name').value = '';
-  document.getElementById('proj-desc').value = '';
-  document.getElementById('proj-url').value = '';
-  document.getElementById('proj-apikey').value = '';
-  document.getElementById('proj-model').value = 'gemini-2.5-flash-lite';
-  
-  document.getElementById('project-form-container').style.display = 'flex';
-  document.getElementById('project-list-container').style.display = 'none';
-}
+    function showAddProjectForm() {
+      document.getElementById('project-form-title').textContent = 'Add New Project';
+      document.getElementById('proj-id').value = '';
+      document.getElementById('proj-name').value = '';
+      document.getElementById('proj-desc').value = '';
+      document.getElementById('proj-url').value = '';
+      document.getElementById('proj-apikey').value = '';
+      document.getElementById('proj-model').value = 'gemini-2.5-flash-lite';
 
-async function editProject(id) {
-  try {
-    const res = await fetchWithAuth(BASE + `/api/projects/${id}`);
-    if (res.ok) {
-      const p = await res.json();
-      document.getElementById('project-form-title').textContent = 'Edit Project: ' + p.name;
-      document.getElementById('proj-id').value = p.id;
-      document.getElementById('proj-name').value = p.name;
-      document.getElementById('proj-desc').value = p.description || '';
-      document.getElementById('proj-url').value = p.database_url || '';
-      document.getElementById('proj-apikey').value = p.api_key || '';
-      document.getElementById('proj-model').value = p.gemini_model;
-      
       document.getElementById('project-form-container').style.display = 'flex';
       document.getElementById('project-list-container').style.display = 'none';
     }
-  } catch (e) {
-    showToast('Failed to load project details: ' + e.message, 'error');
-  }
-}
 
-function hideProjectForm() {
-  document.getElementById('project-form-container').style.display = 'none';
-  document.getElementById('project-list-container').style.display = 'block';
-}
+    async function editProject(id) {
+      try {
+        const res = await fetchWithAuth(BASE + `/api/projects/${id}`);
+        if (res.ok) {
+          const p = await res.json();
+          document.getElementById('project-form-title').textContent = 'Edit Project: ' + p.name;
+          document.getElementById('proj-id').value = p.id;
+          document.getElementById('proj-name').value = p.name;
+          document.getElementById('proj-desc').value = p.description || '';
+          document.getElementById('proj-url').value = p.database_url || '';
+          document.getElementById('proj-apikey').value = p.api_key || '';
+          document.getElementById('proj-model').value = p.gemini_model;
 
-async function testProjectConnection(id, button) {
-  const originalText = button.textContent;
-  button.textContent = 'Testing…';
-  button.disabled = true;
-  
-  try {
-    const res = await fetchWithAuth(BASE + `/api/projects/${id}/test-connection`, {method: 'POST'});
-    const d = await res.json();
-    if (d.connected) {
-      showToast('Connection successful!');
-      button.textContent = '✅ Connected';
-      button.style.borderColor = 'var(--accent)';
-      button.style.color = 'var(--accent)';
-    } else {
-      showToast('Connection failed: ' + d.message, 'error');
-      button.textContent = '❌ Failed';
-      button.style.borderColor = 'var(--danger)';
-      button.style.color = 'var(--danger)';
+          document.getElementById('project-form-container').style.display = 'flex';
+          document.getElementById('project-list-container').style.display = 'none';
+        }
+      } catch (e) {
+        showToast('Failed to load project details: ' + e.message, 'error');
+      }
     }
-  } catch (e) {
-    showToast('Error: ' + e.message, 'error');
-    button.textContent = 'Error';
-  }
-  
-  setTimeout(() => {
-    button.textContent = originalText;
-    button.disabled = false;
-    button.style.borderColor = '';
-    button.style.color = '';
-  }, 3000);
-}
 
-async function saveProject() {
-  const id = document.getElementById('proj-id').value;
-  const name = document.getElementById('proj-name').value.trim();
-  const description = document.getElementById('proj-desc').value.trim();
-  const database_url = document.getElementById('proj-url').value.trim();
-  const api_key = document.getElementById('proj-apikey').value.trim();
-  const gemini_model = document.getElementById('proj-model').value;
-  
-  if (!name || !database_url || !api_key) {
-    showToast('Please fill all required fields.', 'error');
-    return;
-  }
-  
-  const payload = {name, description, database_url, api_key, gemini_model};
-  
-  try {
-    let res;
-    if (id) {
-      // Edit
-      res = await fetchWithAuth(BASE + `/api/projects/${id}`, {
-        method: 'PATCH',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-      });
-    } else {
-      // Add
-      res = await fetchWithAuth(BASE + '/api/projects', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-      });
+    function hideProjectForm() {
+      document.getElementById('project-form-container').style.display = 'none';
+      document.getElementById('project-list-container').style.display = 'block';
     }
-    
-    if (res.ok) {
-      showToast('Project saved successfully!');
-      hideProjectForm();
-      await loadProjects();
-      loadSettingsProjects();
-    } else {
-      const d = await res.json();
-      showToast(d.detail || 'Failed to save project', 'error');
+
+    async function testProjectConnection(id, button) {
+      const originalText = button.textContent;
+      button.textContent = 'Testing…';
+      button.disabled = true;
+
+      try {
+        const res = await fetchWithAuth(BASE + `/api/projects/${id}/test-connection`, { method: 'POST' });
+        const d = await res.json();
+        if (d.connected) {
+          showToast('Connection successful!');
+          button.textContent = '✅ Connected';
+          button.style.borderColor = 'var(--accent)';
+          button.style.color = 'var(--accent)';
+        } else {
+          showToast('Connection failed: ' + d.message, 'error');
+          button.textContent = '❌ Failed';
+          button.style.borderColor = 'var(--danger)';
+          button.style.color = 'var(--danger)';
+        }
+      } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+        button.textContent = 'Error';
+      }
+
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.disabled = false;
+        button.style.borderColor = '';
+        button.style.color = '';
+      }, 3000);
     }
-  } catch (e) {
-    showToast(e.message, 'error');
-  }
-}
 
-async function deleteProject(id) {
-  if (!confirm('Are you sure you want to delete this project? All associated schema history and reports will be deleted.')) {
-    return;
-  }
-  try {
-    const res = await fetchWithAuth(BASE + `/api/projects/${id}`, {method: 'DELETE'});
-    if (res.ok) {
-      showToast('Project deleted successfully!');
-      await loadProjects();
-      loadSettingsProjects();
-    } else {
-      const d = await res.json();
-      showToast(d.detail || 'Failed to delete project', 'error');
+    async function saveProject() {
+      const id = document.getElementById('proj-id').value;
+      const name = document.getElementById('proj-name').value.trim();
+      const description = document.getElementById('proj-desc').value.trim();
+      const database_url = document.getElementById('proj-url').value.trim();
+      const api_key = document.getElementById('proj-apikey').value.trim();
+      const gemini_model = document.getElementById('proj-model').value;
+
+      if (!name || !database_url || !api_key) {
+        showToast('Please fill all required fields.', 'error');
+        return;
+      }
+
+      const payload = { name, description, database_url, api_key, gemini_model };
+
+      try {
+        let res;
+        if (id) {
+          // Edit
+          res = await fetchWithAuth(BASE + `/api/projects/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        } else {
+          // Add
+          res = await fetchWithAuth(BASE + '/api/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        }
+
+        if (res.ok) {
+          showToast('Project saved successfully!');
+          hideProjectForm();
+          await loadProjects();
+          loadSettingsProjects();
+        } else {
+          const d = await res.json();
+          showToast(d.detail || 'Failed to save project', 'error');
+        }
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
     }
-  } catch (e) {
-    showToast(e.message, 'error');
-  }
-}
 
-// ── Settings -> Users Tab ──
-async function loadSettingsUsers() {
-  try {
-    const res = await fetchWithAuth(BASE + '/api/users');
-    if (res.ok) {
-      const data = await res.json();
-      const tbody = document.getElementById('users-table-body');
-      
-      const currentUser = JSON.parse(localStorage.getItem('av_user') || '{}');
+    async function deleteProject(id) {
+      if (!confirm('Are you sure you want to delete this project? All associated schema history and reports will be deleted.')) {
+        return;
+      }
+      try {
+        const res = await fetchWithAuth(BASE + `/api/projects/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast('Project deleted successfully!');
+          await loadProjects();
+          loadSettingsProjects();
+        } else {
+          const d = await res.json();
+          showToast(d.detail || 'Failed to delete project', 'error');
+        }
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
 
-      tbody.innerHTML = data.map(u => {
-        const isSelf = u.id === currentUser.id;
-        return `
+    // ── Settings -> Users Tab ──
+    async function loadSettingsUsers() {
+      try {
+        const res = await fetchWithAuth(BASE + '/api/users');
+        if (res.ok) {
+          const data = await res.json();
+          const tbody = document.getElementById('users-table-body');
+
+          const currentUser = JSON.parse(localStorage.getItem('av_user') || '{}');
+
+          tbody.innerHTML = data.map(u => {
+            const isSelf = u.id === currentUser.id;
+            return `
         <tr>
           <td style="font-weight: 600;">${escHtml(u.username)}</td>
           <td>${escHtml(u.email)}</td>
@@ -1380,199 +2530,199 @@ async function loadSettingsUsers() {
           </td>
         </tr>
       `}).join('');
+        }
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
     }
-  } catch (e) {
-    showToast(e.message, 'error');
-  }
-}
 
-function showAddUserForm() {
-  document.getElementById('user-username').value = '';
-  document.getElementById('user-email').value = '';
-  document.getElementById('user-password').value = '';
-  document.getElementById('user-role').value = 'guest';
-  
-  document.getElementById('user-form-container').style.display = 'flex';
-  document.getElementById('user-list-container').style.display = 'none';
-}
+    function showAddUserForm() {
+      document.getElementById('user-username').value = '';
+      document.getElementById('user-email').value = '';
+      document.getElementById('user-password').value = '';
+      document.getElementById('user-role').value = 'guest';
 
-function hideUserForm() {
-  document.getElementById('user-form-container').style.display = 'none';
-  document.getElementById('user-list-container').style.display = 'block';
-}
-
-async function saveUser() {
-  const username = document.getElementById('user-username').value.trim();
-  const email = document.getElementById('user-email').value.trim();
-  const password = document.getElementById('user-password').value;
-  const role = document.getElementById('user-role').value;
-  
-  if (!username || !email || !password) {
-    showToast('Please fill all required fields.', 'error');
-    return;
-  }
-  
-  try {
-    const res = await fetchWithAuth(BASE + '/api/users', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username, email, password, role})
-    });
-    
-    if (res.ok) {
-      showToast('User created successfully!');
-      hideUserForm();
-      loadSettingsUsers();
-    } else {
-      const d = await res.json();
-      showToast(d.detail || 'Failed to create user', 'error');
+      document.getElementById('user-form-container').style.display = 'flex';
+      document.getElementById('user-list-container').style.display = 'none';
     }
-  } catch (e) {
-    showToast(e.message, 'error');
-  }
-}
 
-async function changeUserRole(userId, role) {
-  try {
-    const res = await fetchWithAuth(BASE + `/api/users/${userId}`, {
-      method: 'PATCH',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({role})
-    });
-    if (res.ok) {
-      showToast('User role updated!');
-      loadSettingsUsers();
-    } else {
-      const d = await res.json();
-      showToast(d.detail || 'Failed to update role', 'error');
+    function hideUserForm() {
+      document.getElementById('user-form-container').style.display = 'none';
+      document.getElementById('user-list-container').style.display = 'block';
     }
-  } catch (e) {
-    showToast(e.message, 'error');
-  }
-}
 
-async function toggleUserStatus(userId, currentStatus) {
-  try {
-    const res = await fetchWithAuth(BASE + `/api/users/${userId}`, {
-      method: 'PATCH',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({is_active: !currentStatus})
-    });
-    if (res.ok) {
-      showToast(currentStatus ? 'User account deactivated' : 'User account activated');
-      loadSettingsUsers();
-    } else {
-      const d = await res.json();
-      showToast(d.detail || 'Failed to toggle account state', 'error');
-    }
-  } catch (e) {
-    showToast(e.message, 'error');
-  }
-}
+    async function saveUser() {
+      const username = document.getElementById('user-username').value.trim();
+      const email = document.getElementById('user-email').value.trim();
+      const password = document.getElementById('user-password').value;
+      const role = document.getElementById('user-role').value;
 
-async function deleteUser(userId) {
-  if (!confirm('Are you sure you want to permanently delete this user account?')) {
-    return;
-  }
-  try {
-    const res = await fetchWithAuth(BASE + `/api/users/${userId}`, {method: 'DELETE'});
-    if (res.ok) {
-      showToast('User deleted successfully!');
-      loadSettingsUsers();
-    } else {
-      const d = await res.json();
-      showToast(d.detail || 'Failed to delete user', 'error');
-    }
-  } catch (e) {
-    showToast(e.message, 'error');
-  }
-}
-
-// ── Reports Modal Logic ────────────────────────────────────────────────────────
-function switchReportsTab(tab) {
-  document.getElementById('tab-gen-report-btn').classList.toggle('active', tab === 'generate');
-  document.getElementById('tab-history-report-btn').classList.toggle('active', tab === 'history');
-  
-  document.getElementById('reports-generate-content').style.display = tab === 'generate' ? 'flex' : 'none';
-  document.getElementById('reports-history-content').style.display = tab === 'history' ? 'flex' : 'none';
-  
-  if (tab === 'history') loadReportsHistory();
-}
-
-async function generateReport() {
-  if (!activeProjectId) {
-    showToast('Select an active project first.', 'error');
-    return;
-  }
-
-  const reportType = document.getElementById('report-type-select').value;
-  const title = document.getElementById('report-title-input').value.trim();
-  const btn = document.getElementById('generate-report-submit-btn');
-  const preview = document.getElementById('report-preview-body');
-  
-  btn.textContent = 'Generating…';
-  btn.disabled = true;
-  preview.textContent = 'Connecting to project database and building summary report…';
-  
-  try {
-    const res = await fetchWithAuth(BASE + '/api/reports/generate', {
-      method: 'QUERY',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        project_id: activeProjectId,
-        report_type: reportType,
-        title: title || undefined
-      })
-    });
-    
-    const d = await res.json();
-    if (res.ok) {
-      showToast('Report generated successfully!');
-      activeReportContent = d.content_markdown;
-      activeReportTitle = d.title;
-      preview.textContent = d.content_markdown;
-      
-      document.getElementById('download-report-btn').style.display = 'block';
-    } else {
-      showToast(d.detail || 'Report generation failed', 'error');
-      preview.textContent = 'Error: ' + (d.detail || 'Something went wrong.');
-    }
-  } catch (e) {
-    showToast(e.message, 'error');
-    preview.textContent = 'Network Error: ' + e.message;
-  }
-  
-  btn.textContent = 'Generate Report';
-  btn.disabled = false;
-}
-
-function downloadActiveReport() {
-  if (!activeReportContent) return;
-  const blob = new Blob([activeReportContent], {type: 'text/markdown'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${activeReportTitle || 'Andavar_Report'}.md`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-async function loadReportsHistory() {
-  if (!activeProjectId) return;
-  try {
-    const res = await fetchWithAuth(BASE + `/api/reports?project_id=${activeProjectId}`);
-    if (res.ok) {
-      const data = await res.json();
-      const tbody = document.getElementById('reports-history-table-body');
-      
-      if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--muted); font-style: italic;">No previous reports for this project.</td></tr>';
+      if (!username || !email || !password) {
+        showToast('Please fill all required fields.', 'error');
         return;
       }
 
-      tbody.innerHTML = data.map(r => `
+      try {
+        const res = await fetchWithAuth(BASE + '/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email, password, role })
+        });
+
+        if (res.ok) {
+          showToast('User created successfully!');
+          hideUserForm();
+          loadSettingsUsers();
+        } else {
+          const d = await res.json();
+          showToast(d.detail || 'Failed to create user', 'error');
+        }
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    async function changeUserRole(userId, role) {
+      try {
+        const res = await fetchWithAuth(BASE + `/api/users/${userId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role })
+        });
+        if (res.ok) {
+          showToast('User role updated!');
+          loadSettingsUsers();
+        } else {
+          const d = await res.json();
+          showToast(d.detail || 'Failed to update role', 'error');
+        }
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    async function toggleUserStatus(userId, currentStatus) {
+      try {
+        const res = await fetchWithAuth(BASE + `/api/users/${userId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_active: !currentStatus })
+        });
+        if (res.ok) {
+          showToast(currentStatus ? 'User account deactivated' : 'User account activated');
+          loadSettingsUsers();
+        } else {
+          const d = await res.json();
+          showToast(d.detail || 'Failed to toggle account state', 'error');
+        }
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    async function deleteUser(userId) {
+      if (!confirm('Are you sure you want to permanently delete this user account?')) {
+        return;
+      }
+      try {
+        const res = await fetchWithAuth(BASE + `/api/users/${userId}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast('User deleted successfully!');
+          loadSettingsUsers();
+        } else {
+          const d = await res.json();
+          showToast(d.detail || 'Failed to delete user', 'error');
+        }
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    // ── Reports Modal Logic ────────────────────────────────────────────────────────
+    function switchReportsTab(tab) {
+      document.getElementById('tab-gen-report-btn').classList.toggle('active', tab === 'generate');
+      document.getElementById('tab-history-report-btn').classList.toggle('active', tab === 'history');
+
+      document.getElementById('reports-generate-content').style.display = tab === 'generate' ? 'flex' : 'none';
+      document.getElementById('reports-history-content').style.display = tab === 'history' ? 'flex' : 'none';
+
+      if (tab === 'history') loadReportsHistory();
+    }
+
+    async function generateReport() {
+      if (!activeProjectId) {
+        showToast('Select an active project first.', 'error');
+        return;
+      }
+
+      const reportType = document.getElementById('report-type-select').value;
+      const title = document.getElementById('report-title-input').value.trim();
+      const btn = document.getElementById('generate-report-submit-btn');
+      const preview = document.getElementById('report-preview-body');
+
+      btn.textContent = 'Generating…';
+      btn.disabled = true;
+      preview.textContent = 'Connecting to project database and building summary report…';
+
+      try {
+        const res = await fetchWithAuth(BASE + '/api/reports/generate', {
+          method: 'QUERY',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: activeProjectId,
+            report_type: reportType,
+            title: title || undefined
+          })
+        });
+
+        const d = await res.json();
+        if (res.ok) {
+          showToast('Report generated successfully!');
+          activeReportContent = d.content_markdown;
+          activeReportTitle = d.title;
+          preview.innerHTML = renderMarkdown(d.content_markdown);
+
+          document.getElementById('download-report-btn').style.display = 'block';
+        } else {
+          showToast(d.detail || 'Report generation failed', 'error');
+          preview.textContent = 'Error: ' + (d.detail || 'Something went wrong.');
+        }
+      } catch (e) {
+        showToast(e.message, 'error');
+        preview.textContent = 'Network Error: ' + e.message;
+      }
+
+      btn.textContent = 'Generate Report';
+      btn.disabled = false;
+    }
+
+    function downloadActiveReport() {
+      if (!activeReportContent) return;
+      const blob = new Blob([activeReportContent], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${activeReportTitle || 'Andavar_Report'}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    async function loadReportsHistory() {
+      if (!activeProjectId) return;
+      try {
+        const res = await fetchWithAuth(BASE + `/api/reports?project_id=${activeProjectId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const tbody = document.getElementById('reports-history-table-body');
+
+          if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--muted); font-style: italic;">No previous reports for this project.</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = data.map(r => `
         <tr>
           <td style="font-weight: 600;">${escHtml(r.title)}</td>
           <td><code style="font-family: var(--mono);">${r.report_type}</code></td>
@@ -1587,41 +2737,145 @@ async function loadReportsHistory() {
           </td>
         </tr>
       `).join('');
+        }
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
     }
-  } catch (e) {
-    showToast(e.message, 'error');
-  }
-}
 
-async function viewReportHistoryDetail(id) {
-  try {
-    const res = await fetchWithAuth(BASE + `/api/reports/${id}`);
-    if (res.ok) {
-      const d = await res.json();
-      switchReportsTab('generate');
-      
-      activeReportContent = d.content_markdown;
-      activeReportTitle = d.title;
-      
-      const preview = document.getElementById('report-preview-body');
-      preview.textContent = d.content_markdown;
-      
-      document.getElementById('download-report-btn').style.display = 'block';
+    async function viewReportHistoryDetail(id) {
+      try {
+        const res = await fetchWithAuth(BASE + `/api/reports/${id}`);
+        if (res.ok) {
+          const d = await res.json();
+          switchReportsTab('generate');
+
+          activeReportContent = d.content_markdown;
+          activeReportTitle = d.title;
+
+          const preview = document.getElementById('report-preview-body');
+          preview.innerHTML = renderMarkdown(d.content_markdown);
+
+          document.getElementById('download-report-btn').style.display = 'block';
+        }
+      } catch (e) {
+        showToast('Failed to load report: ' + e.message, 'error');
+      }
     }
-  } catch (e) {
-    showToast('Failed to load report: ' + e.message, 'error');
-  }
-}
 
-// ── Textarea auto-resize & keypresses ─────────────────────────────────────────
-const inp = document.getElementById('msg-input');
-inp.addEventListener('input', () => {
-  inp.style.height = 'auto';
-  inp.style.height = Math.min(inp.scrollHeight, 160) + 'px';
-});
-inp.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-});
-</script>
+    // ── Textarea auto-resize & keypresses ─────────────────────────────────────────
+    const inp = document.getElementById('msg-input');
+    inp.addEventListener('input', () => {
+      inp.style.height = 'auto';
+      inp.style.height = Math.min(inp.scrollHeight, 160) + 'px';
+    });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+    // ── Schema Visualizer ─────────────────────────────────────────────────────────
+    mermaid.initialize({
+      startOnLoad: false, theme: 'dark', themeVariables: {
+        primaryColor: '#8b5cf6', primaryTextColor: '#f3f4f6', lineColor: '#6366f1',
+        primaryBorderColor: '#7c3aed', secondaryColor: '#1e293b', tertiaryColor: '#111827'
+      }
+    });
+
+    function openVisualizer() {
+      document.getElementById('visualizer-modal').style.display = 'flex';
+      const container = document.getElementById('viz-diagram');
+      container.innerHTML = '<div class="viz-empty">Click "Generate Diagram" to visualize the active project schema.</div>';
+    }
+
+    function closeVisualizerModal() {
+      document.getElementById('visualizer-modal').style.display = 'none';
+    }
+
+    async function generateVisualizerDiagram() {
+      if (!activeProjectId) {
+        showToast('Select an active project first.', 'error');
+        return;
+      }
+      const container = document.getElementById('viz-diagram');
+      container.innerHTML = '<div class="viz-empty">Generating ERD diagram…</div>';
+
+      try {
+        const res = await fetchWithAuth(BASE + '/api/reports/generate', {
+          method: 'QUERY',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: activeProjectId,
+            report_type: 'mermaid_erd'
+          })
+        });
+        const d = await res.json();
+        if (!res.ok) {
+          container.innerHTML = '<div class="viz-empty">Error: ' + escHtml(d.detail || 'Failed to generate') + '</div>';
+          return;
+        }
+
+        // Extract mermaid code from the content
+        let mermaidCode = d.content_markdown || '';
+        // Strip markdown fences if present
+        mermaidCode = mermaidCode.replace(/```mermaid\s*/gi, '').replace(/```/g, '').trim();
+        if (!mermaidCode || mermaidCode.startsWith('%%')) {
+          container.innerHTML = '<div class="viz-empty">No schema tables found in project. Chat with Andavar first to design a schema.</div>';
+          return;
+        }
+
+        container.innerHTML = '<div class="mermaid">' + escHtml(mermaidCode) + '</div>';
+        await mermaid.run({ nodes: container.querySelectorAll('.mermaid') });
+        showToast('ERD diagram rendered!');
+      } catch (e) {
+        container.innerHTML = '<div class="viz-empty">Network Error: ' + escHtml(e.message) + '</div>';
+      }
+    }
+
+    function downloadVisualizerSVG() {
+      const svg = document.querySelector('#viz-diagram svg');
+      if (!svg) {
+        showToast('Generate a diagram first.', 'error');
+        return;
+      }
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'andavar-schema-erd.svg';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+  </script>
+
+  <!-- Visualizer Modal -->
+  <div class="modal" id="visualizer-modal" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg class="icon-svg" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="8" y="14" width="7" height="7" rx="1" />
+            <line x1="6.5" y1="10" x2="6.5" y2="14" style="stroke:currentColor" />
+            <line x1="6.5" y1="14" x2="11.5" y2="14" />
+            <line x1="17.5" y1="10" x2="17.5" y2="14" style="stroke:currentColor" />
+            <line x1="17.5" y1="14" x2="11.5" y2="14" />
+          </svg>
+          Schema Visualizer
+        </div>
+        <button class="modal-close" onclick="closeVisualizerModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="viz-toolbar">
+          <button class="btn-small" onclick="generateVisualizerDiagram()">Generate Diagram</button>
+          <button class="btn-small btn-secondary" onclick="downloadVisualizerSVG()">Download SVG</button>
+        </div>
+        <div class="viz-container" id="viz-diagram">
+          <div class="viz-empty">Click "Generate Diagram" to visualize the active project schema.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
+
 </html>
