@@ -18,13 +18,7 @@ def _get_fernet() -> Fernet:
 
     key = settings.encryption_key
     if not key:
-        # Generate and warn — in production user should persist this
-        key = Fernet.generate_key().decode()
-        settings.encryption_key = key
-        logger.warning(
-            "ENCRYPTION_KEY not set — auto-generated. "
-            "Add ENCRYPTION_KEY=%s to .env to persist across restarts.", key
-        )
+        raise RuntimeError("ENCRYPTION_KEY was not initialized")
 
     # Fernet expects url-safe base64; if user provides raw string, pad it
     try:

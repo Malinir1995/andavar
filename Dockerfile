@@ -4,6 +4,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=8000 \
+    ANDAVAR_DATA_DIR=/app/postgres_data \
     DATABASE_URL=postgresql://andavar:andavar@localhost:5432/andavar \
     PATH="/usr/lib/postgresql/17/bin:/usr/lib/postgresql/16/bin:/usr/lib/postgresql/15/bin:/usr/lib/postgresql/14/bin:${PATH}"
 
@@ -26,12 +27,11 @@ COPY . .
 # Make entrypoint.sh executable
 RUN chmod +x entrypoint.sh
 
-# Non-root user for security (PostgreSQL will run as 'andavar' too)
+# Create the runtime user. The entrypoint starts as root only long enough to
+# fix mounted volume ownership, then runs PostgreSQL and the app as 'andavar'.
 RUN useradd -m -u 1001 andavar && chown -R andavar:andavar /app
-USER andavar
 
 EXPOSE 8000
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
-

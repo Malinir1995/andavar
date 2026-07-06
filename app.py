@@ -344,5 +344,5 @@ def introspect_database(project_id: Optional[str] = None, user: dict = Depends(g
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8001))
+    port = int(os.getenv("PORT", settings.port))
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
