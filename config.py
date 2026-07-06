@@ -1,7 +1,49 @@
 import os
 import secrets
+import base64
 import logging
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+logger = logging.getLogger("andavar.config")
+
+
+def _data_dir() -> str:
+    return os.getenv("ANDAVAR_DATA_DIR", os.path.join(os.getcwd(), ".andavar"))
+
+
+def _secret_file_path() -> str:
+    return os.getenv("ANDAVAR_SECRET_FILE", os.path.join(_data_dir(), "secrets.env"))
+
+
+def _read_secret_file() -> dict[str, str]:
+    path = _secret_file_path()
+    if not os.path.exists(path):
+        return {}
+
+    values: dict[str, str] = {}
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            values[key.strip()] = value.strip()
+    return values
+
+
+def _write_secret_file(values: dict[str, str]) -> None:
+    path = _secret_file_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        for key, value in values.items():
+            f.write(f"{key}={value}\n")
+    os.chmod(path, 0o600)
+
+
+def _fernet_key() -> str:
+    return base64.urlsafe_b64encode(secrets.token_bytes(32)).decode()
+
 
 class Settings(BaseSettings):
     google_api_key: str = ""
@@ -17,8 +59,6 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:8000,http://localhost:8001"
 
     # ── JWT ────────────────────────────────────────────────
-    # jwt_secret is read from JWT_SECRET env var; falls back to SECRET_KEY;
-    # only generates randomly if neither is set (dev convenience, breaks on restart)
     jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
     jwt_expiry_minutes: int = 1440  # 24 hours
@@ -39,18 +79,34 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# ── Resolve jwt_secret: JWT_SECRET > SECRET_KEY > random (warn) ──────────────
+_persisted = _read_secret_file()
+_changed = False
+
+if not settings.secret_key or settings.secret_key == "change_this_in_prod":
+    settings.secret_key = _persisted.get("SECRET_KEY") or secrets.token_hex(32)
+    if _persisted.get("SECRET_KEY") != settings.secret_key:
+        _persisted["SECRET_KEY"] = settings.secret_key
+        _changed = True
+
 if not settings.jwt_secret:
-    _fallback = settings.secret_key
-    if _fallback and _fallback != "change_this_in_prod":
-        settings.jwt_secret = _fallback
-    else:
-        settings.jwt_secret = secrets.token_urlsafe(32)
-        logging.getLogger("andavar.config").warning(
-            "JWT_SECRET not set — generated random secret. "
-            "All tokens will be invalidated on restart. "
-            "Set JWT_SECRET in .env to fix."
-        )
+    settings.jwt_secret = _persisted.get("JWT_SECRET") or secrets.token_urlsafe(48)
+    if _persisted.get("JWT_SECRET") != settings.jwt_secret:
+        _persisted["JWT_SECRET"] = settings.jwt_secret
+        _changed = True
+
+if not settings.encryption_key:
+    settings.encryption_key = _persisted.get("ENCRYPTION_KEY") or _fernet_key()
+    if _persisted.get("ENCRYPTION_KEY") != settings.encryption_key:
+        _persisted["ENCRYPTION_KEY"] = settings.encryption_key
+        _changed = True
+
+if _changed:
+    _write_secret_file(_persisted)
+    logger.warning(
+        "Generated persistent application secrets at %s. "
+        "Keep ANDAVAR_DATA_DIR or ANDAVAR_SECRET_FILE on persistent storage.",
+        _secret_file_path(),
+    )
 
 # Ensure GOOGLE_API_KEY is in os.environ for libraries that expect it there
 if settings.google_api_key:

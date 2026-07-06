@@ -124,11 +124,27 @@ Andavar is built with Docker in mind and continuously published to GitHub Contai
 
 ```bash
 # 1. Pull the image from GHCR
-docker pull ghcr.io/malinir1995/andavar:latest
+docker pull ghcr.io/malinir1995/andavar:main
 
-# 2. Run the application (ensure a PostgreSQL instance is accessible)
-docker run -p 8000:8000 --env-file .env ghcr.io/malinir1995/andavar:latest
+# 2. Run the application
+docker run --name andavar \
+  -p 8000:8000 \
+  -v andavar_pgdata:/app/postgres_data \
+  ghcr.io/malinir1995/andavar:main
 ```
+
+No `.env` file is required for the default Docker image. The container creates
+its own local PostgreSQL database for Andavar system data, and it stores generated
+JWT/encryption secrets inside the `andavar_pgdata` volume so auth survives
+container restarts.
+
+Open `http://localhost:8000`, create the first admin user, then use Settings in
+the dashboard to add projects. Each project stores its own Gemini API key and
+target PostgreSQL/Neon database URL.
+
+Keep the `andavar_pgdata` volume when upgrading or replacing the container. If
+you delete that volume, the local Andavar database, admin account, sessions, and
+encrypted project settings are reset.
 
 Or run with the bundled PostgreSQL instance via Docker Compose:
 
