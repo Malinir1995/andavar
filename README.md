@@ -1,7 +1,7 @@
 # Andavar — Multi-Agent SQL & Schema Assistant
 
 Andavar is an intelligent, professional-grade, multi-agent database schema designer and management assistant. Powered by Google Gemini and integrated with the Neon Model Context Protocol (MCP) server, Andavar transforms natural language descriptions of data requirements into production-ready, fully-normalized relational schemas, DDL scripts, Python ORM models, Prisma files, Mermaid ERDs, and context-aware mock data.
-
+ 
 ---
 
 ## 📖 Table of Contents
